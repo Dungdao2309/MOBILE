@@ -11,5 +11,6 @@ data class SavedDocumentEntity(
     val author: String, // "Tác giả" từ màn hình Form
     val subject: String,  // "Môn học" từ màn hình Form
     val metaInfo: String, // Dòng nhỏ (ví dụ: "10 lượt tải · Môn học")
-    val addedTimestamp: Long = System.currentTimeMillis() // Để sắp xếp
+    val addedTimestamp: Long = System.currentTimeMillis(), // Để sắp xếp
+    val downloadCount: Int = 0
 )
