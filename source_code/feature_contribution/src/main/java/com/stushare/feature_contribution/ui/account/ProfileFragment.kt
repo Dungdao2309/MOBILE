@@ -5,56 +5,70 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.stushare.feature_contribution.R
+import com.stushare.feature_contribution.db.SavedDocumentEntity
+import kotlinx.coroutines.launch
 
-// đổi tên trường tránh xung đột: docTitle thay cho title
-data class DocItem(val docTitle: String, val meta: String)
 
 class ProfileFragment : Fragment() {
 
-    private val docsPublished = mutableListOf<DocItem>()
-    private val docsSaved = mutableListOf<DocItem>()
-    private val docsDownloaded = mutableListOf<DocItem>()
+    private val viewModel: ProfileViewModel by viewModels()
 
     private lateinit var adapter: DocAdapter
+    private lateinit var tabLayout: TabLayout
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        // sample data
-        repeat(6) {
-            docsPublished.add(DocItem("Title môn học", "số lượt tải · Môn học"))
-            docsSaved.add(DocItem("Đã lưu: Tài liệu $it", "số lượt tải · Môn học"))
-            docsDownloaded.add(DocItem("Đã tải về: Tài liệu $it", "số lượt tải · Môn học"))
-        }
-    }
+    // Biến cho RecyclerView và TextView rỗng
+    private lateinit var rvDocs: RecyclerView
+    private lateinit var tvEmptyMessage: TextView
+
+    private var publishedDocsList: List<DocItem> = emptyList()
+    private var savedDocsList: List<DocItem> = emptyList()
+    private var downloadedDocsList: List<DocItem> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_profile, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        // Setup tabs
-        val tabLayout = view.findViewById<TabLayout>(R.id.tab_profile)
+        super.onViewCreated(view, savedInstanceState)
+
+        tabLayout = view.findViewById(R.id.tab_profile)
         tabLayout.addTab(tabLayout.newTab().setText("Tài liệu đã đăng"))
         tabLayout.addTab(tabLayout.newTab().setText("Đã lưu"))
         tabLayout.addTab(tabLayout.newTab().setText("Đã tải về"))
 
-        // Recycler view
-        val rv = view.findViewById<RecyclerView>(R.id.rv_docs)
-        rv.layoutManager = LinearLayoutManager(requireContext())
-        adapter = DocAdapter(mutableListOf())
-        rv.adapter = adapter
+        // --- SỬA LỖI Ở ĐÂY ---
+        // 1. Gán giá trị cho 2 biến của class
+        rvDocs = view.findViewById(R.id.rv_docs)
+        tvEmptyMessage = view.findViewById(R.id.tv_empty_message)
 
-        // default show published
-        showDocsForTab(0)
+        // 2. Sử dụng biến class "rvDocs" (thay vì "rv" cục bộ)
+        rvDocs.layoutManager = LinearLayoutManager(requireContext())
+        // --- KẾT THÚC SỬA LỖI ---
 
-        tabLayout.addOnTabSelectedListener(object: TabLayout.OnTabSelectedListener{
+        adapter = DocAdapter(mutableListOf()) { item ->
+            if (tabLayout.selectedTabPosition == 0) {
+                viewModel.deletePublishedDocument(item.documentId)
+            } else {
+                Toast.makeText(requireContext(), "Chức năng Xóa cho tab này chưa được hỗ trợ", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // 3. Gán adapter cho "rvDocs"
+        rvDocs.adapter = adapter
+
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 showDocsForTab(tab?.position ?: 0)
             }
@@ -62,26 +76,98 @@ class ProfileFragment : Fragment() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // settings button (safe null-check)
         view.findViewById<ImageButton>(R.id.btn_settings)?.setOnClickListener {
-            Toast.makeText(requireContext(), "Mở cài đặt (thêm chức năng)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Mở cài đặt", Toast.LENGTH_SHORT).show()
+        }
+
+        observeViewModel(view)
+    }
+
+    private fun observeViewModel(view: View) {
+        val tvProfileName = view.findViewById<TextView>(R.id.tv_profile_name)
+        val tvProfileSub = view.findViewById<TextView>(R.id.tv_profile_sub)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+
+                launch {
+                    viewModel.userProfile.collect { user ->
+                        if (user != null) {
+                            tvProfileName.text = "Xin chào, ${user.fullName}"
+                        } else {
+                            tvProfileName.text = "Xin chào, Khách"
+                        }
+                    }
+                }
+
+                launch {
+                    viewModel.publishedDocuments.collect { docs ->
+                        publishedDocsList = docs
+                        if (tabLayout.selectedTabPosition == 0) {
+                            showDocsForTab(0)
+                        }
+                    }
+                }
+                launch {
+                    viewModel.savedDocuments.collect { entities ->
+                        // Chỗ này viewModel.savedDocuments đang là rỗng,
+                        // nên savedDocsList cũng sẽ là rỗng
+                        savedDocsList = entities.map {
+                            DocItem(it.documentId, it.title, it.metaInfo)
+                        }
+                        if (tabLayout.selectedTabPosition == 1) {
+                            showDocsForTab(1) // -> Sẽ gọi showDocsForTab(1)
+                        }
+                    }
+                }
+
+                launch {
+                    viewModel.downloadedDocuments.collect { docs ->
+                        downloadedDocsList = docs
+                        if (tabLayout.selectedTabPosition == 2) {
+                            showDocsForTab(2)
+                        }
+                    }
+                }
+            }
         }
     }
 
+    // Hàm này đã chính xác
     private fun showDocsForTab(pos: Int) {
-        val list = when(pos) {
-            0 -> docsPublished
-            1 -> docsSaved
-            2 -> docsDownloaded
-            else -> docsPublished
+        val list = when (pos) {
+            0 -> publishedDocsList
+            1 -> savedDocsList // -> list sẽ là rỗng
+            2 -> downloadedDocsList
+            else -> publishedDocsList
         }
+
+        // Vì list rỗng, code sẽ chạy vào đây
+        if (list.isEmpty()) {
+            rvDocs.visibility = View.GONE
+            tvEmptyMessage.visibility = View.VISIBLE
+
+            tvEmptyMessage.text = when (pos) {
+                0 -> "Hiện không có tài liệu đã đăng"
+                1 -> "Hiện không có tài liệu đã lưu" // -> Sẽ set text này
+                2 -> "Hiện không có tài liệu đã tải về"
+                else -> "Không có tài liệu"
+            }
+        } else {
+            rvDocs.visibility = View.VISIBLE
+            tvEmptyMessage.visibility = View.GONE
+        }
+
         adapter.setAll(list)
     }
 
-    // Adapter (dùng docTitle)
-    class DocAdapter(private val items: MutableList<DocItem>): RecyclerView.Adapter<DocAdapter.VH>() {
+    // Class DocAdapter không thay đổi
+    class DocAdapter(
+        private val items: MutableList<DocItem>,
+        private val onDeleteClicked: (DocItem) -> Unit
+    ) : RecyclerView.Adapter<DocAdapter.VH>() {
 
-        inner class VH(v: View): RecyclerView.ViewHolder(v) {
+        inner class VH(v: View) : RecyclerView.ViewHolder(v) {
             val title: TextView = v.findViewById(R.id.tv_doc_title)
             val meta: TextView = v.findViewById(R.id.tv_doc_meta)
             val more: ImageButton = v.findViewById(R.id.btn_more)
@@ -96,12 +182,22 @@ class ProfileFragment : Fragment() {
             val item = items[position]
             holder.title.text = item.docTitle
             holder.meta.text = item.meta
-            holder.more.setOnClickListener {
-                // dùng concatenation để tránh bất kỳ vấn đề lookup tên biến
-                Toast.makeText(holder.itemView.context, "More for " + item.docTitle, Toast.LENGTH_SHORT).show()
+
+            holder.more.setOnClickListener { view ->
+                val popup = PopupMenu(holder.itemView.context, view)
+                popup.menu.add("Xóa")
+                popup.setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.title) {
+                        "Xóa" -> {
+                            onDeleteClicked(item)
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                popup.show()
             }
         }
-
 
         override fun getItemCount(): Int = items.size
 
