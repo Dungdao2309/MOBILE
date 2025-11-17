@@ -18,13 +18,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 // ⭐️ IMPORT THÊM:
+import com.google.firebase.auth.FirebaseAuth // <-- IMPORT CẦN THIẾT
 import com.google.firebase.firestore.FirebaseFirestore
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    // 1. Cung cấp AppDatabase (Chỉ còn Document)
+    // 1. Cung cấp AppDatabase (Giữ nguyên)
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -43,8 +44,6 @@ object DatabaseModule {
         return database.documentDao()
     }
 
-    // ⭐️ HÀM provideRequestDao() ĐÃ BỊ XÓA ⭐️
-
     // 3. Cung cấp DocumentRepository (Giữ nguyên)
     @Provides
     @Singleton
@@ -61,11 +60,11 @@ object DatabaseModule {
     @Singleton
     fun provideRequestRepository(
         // ⭐️ THAY ĐỔI: Inject Firestore (từ FirebaseModule)
-        firestore: FirebaseFirestore
-        // ⭐️ XÓA: requestDao: RequestDao
-        // ⭐️ XÓA: apiService: ApiService
+        firestore: FirebaseFirestore,
+        // ⭐️ THÊM MỚI: Inject FirebaseAuth (từ FirebaseModule)
+        firebaseAuth: FirebaseAuth
     ): RequestRepository {
-        // ⭐️ THAY ĐỔI: Trả về Impl mới
-        return RequestRepositoryImpl(firestore)
+        // ⭐️ THAY ĐỔI: Trả về Impl mới với 2 tham số
+        return RequestRepositoryImpl(firestore, firebaseAuth)
     }
 }

@@ -58,8 +58,8 @@ class ViewAllViewModel @Inject constructor(
             // ⭐️ KẾT THÚC THAY ĐỔI ⭐️
 
             try {
-                // 1. Luôn làm mới dữ liệu từ API trước
-                repository.refreshDocuments()
+                // 1. ⭐️ THAY ĐỔI: Chỉ làm mới nếu cache đã cũ ⭐️
+                repository.refreshDocumentsIfStale() //
 
                 // 2. Sau đó đọc dữ liệu từ DB (Single Source of Truth)
                 repository.getDocumentsByType(databaseType)
@@ -94,8 +94,8 @@ class ViewAllViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = ViewAllUiState.Loading
             try {
-                // 1. (Tùy chọn) Làm mới dữ liệu từ API trước khi tìm kiếm
-                repository.refreshDocuments()
+                // 1. ⭐️ THAY ĐỔI: Chỉ làm mới nếu cache đã cũ ⭐️
+                repository.refreshDocumentsIfStale() //
 
                 // 2. Gọi đúng hàm search (suspend fun)
                 val searchResults = repository.searchDocuments(query)

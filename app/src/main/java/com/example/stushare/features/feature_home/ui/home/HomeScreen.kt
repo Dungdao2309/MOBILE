@@ -57,7 +57,6 @@ fun HomeScreen(
     onCreateRequestClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val userName by viewModel.userNameState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.errorMessage) {
@@ -132,7 +131,7 @@ fun HomeScreen(
                         ) {
                             item {
                                 HomeHeaderSection(
-                                    userName = userName,
+                                    userName = uiState.userName,
                                     avatarUrl = uiState.avatarUrl,
                                     onSearchClick = onSearchClick
                                 )
@@ -198,7 +197,7 @@ fun HomeScreen(
                         ) {
                             item(span = { GridItemSpan(columns) }) {
                                 HomeHeaderSection(
-                                    userName = userName,
+                                    userName = uiState.userName,
                                     avatarUrl = uiState.avatarUrl,
                                     onSearchClick = onSearchClick
                                 )
@@ -299,7 +298,7 @@ private fun EmptyState() {
 @Composable
 fun HomeHeaderSection(
     userName: String,
-    avatarUrl: String,
+    avatarUrl: String?,
     onSearchClick: () -> Unit
 ) {
     Column(

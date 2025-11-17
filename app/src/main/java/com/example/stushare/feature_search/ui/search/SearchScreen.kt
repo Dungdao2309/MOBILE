@@ -37,9 +37,12 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val currentQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    // ⭐️ XÓA: val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // ⭐️ BƯỚC 1: LẤY STATE MỚI TỪ VIEWMODEL ⭐️
+    val recentSearches by viewModel.recentSearchesState.collectAsStateWithLifecycle()
 
-    val recentSearches = remember { listOf("Lập trình mobile", "Triết", "Kỹ thuật lập trình", "Hệ điều hành", "Mạng máy tính") }
+    // ⭐️ BƯỚC 2: XÓA DANH SÁCH HARDCODE ⭐️
+    // val recentSearches = remember { ... } // <-- ĐÃ XÓA
+
     val suggestions = remember { listOf("Pháp luật đại cương", "Công nghệ phần mềm", "Khoa CNTT", "#dethi") }
 
     // ⭐️ THAY ĐỔI: Lắng nghe sự kiện điều hướng (navigationEvent)
@@ -84,9 +87,10 @@ fun SearchScreen(
             // Màn hình này giờ chỉ hiển thị Lịch sử và Gợi ý
 
             SearchHistorySection(
-                searches = recentSearches,
+                searches = recentSearches, // <-- Dùng state từ ViewModel
                 onChipClick = { tag -> viewModel.onQueryChanged(tag) },
-                onClearClick = { /* Xử lý xóa lịch sử */ }
+                // ⭐️ BƯỚC 3: CẬP NHẬT NÚT XÓA ⭐️
+                onClearClick = { viewModel.clearRecentSearches() }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
