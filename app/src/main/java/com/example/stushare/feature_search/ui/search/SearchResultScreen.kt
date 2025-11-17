@@ -43,7 +43,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stushare.core.data.models.Document
 import com.example.stushare.features.feature_home.ui.components.DocumentCard
-import com.example.stushare.features.feature_search.ui.search.SearchResultViewModel
 import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterial3Api::class)

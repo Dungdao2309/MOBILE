@@ -7,13 +7,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map // Cần import map
 import javax.inject.Inject
 
+// ⭐️ IMPORT HẰNG SỐ MỚI ⭐️
+import com.example.stushare.core.utils.AppConstants
+
 class GetExamDocumentsUseCase @Inject constructor(
     private val repository: DocumentRepository
 ) {
     operator fun invoke(): Flow<List<Document>> {
         // LỌC LOGIC ĐÃ ĐƯỢC CHUYỂN TỪ VIEWMODEL XUỐNG ĐÂY
         return repository.getAllDocuments().map { allDocuments ->
-            allDocuments.filter { it.type == "Tài Liệu" }
+            // ⭐️ THAY ĐỔI: Dùng hằng số thay vì chuỗi "Tài Liệu" ⭐️
+            allDocuments.filter { it.type == AppConstants.TYPE_EXAM_PREP }
         }
     }
 }

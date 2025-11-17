@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+// ⭐️ IMPORT MỚI ⭐️
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 // Trạng thái UiState (Không đổi)
 sealed interface DetailUiState {
@@ -27,6 +30,11 @@ class DocumentDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
     val uiState: StateFlow<DetailUiState> = _uiState.asStateFlow()
+
+    // ⭐️ BƯỚC 1: THÊM EVENT FLOW ĐỂ GỬI SỰ KIỆN SNACKBAR ⭐️
+    private val _snackbarEvent = MutableSharedFlow<String>()
+    val snackbarEvent = _snackbarEvent.asSharedFlow()
+    // ⭐️ KẾT THÚC BƯỚC 1 ⭐️
 
     // Lắng nghe tài liệu dựa trên ID (được gọi từ Screen)
     fun getDocumentById(documentId: String) {
@@ -47,6 +55,11 @@ class DocumentDetailViewModel @Inject constructor(
     fun startDownload(url: String, title: String) {
         // Gọi DownloadHelper để bắt đầu tải file
         downloadHelper.downloadFile(url, title)
-        // (Bạn có thể thêm logic báo thành công/thất bại ở đây)
+
+        // ⭐️ BƯỚC 2: GỬI SỰ KIỆN VỀ CHO UI ⭐️
+        viewModelScope.launch {
+            _snackbarEvent.emit("Bắt đầu tải về...")
+        }
+        // ⭐️ KẾT THÚC BƯỚC 2 ⭐️
     }
 }

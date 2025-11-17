@@ -1,18 +1,18 @@
 // File: features/feature_search/ui/search/SearchResultViewModel.kt
-// (Đã dọn dẹp)
+// (⭐️ ĐÃ CẬP NHẬT VỚI LOGIC TÌM KIẾM TỐI ƯU ⭐️)
 
-package com.example.stushare.features.feature_search.ui.search // Sửa package nếu cần
+package com.example.stushare.feature_search.ui.search // Sửa package nếu cần
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stushare.core.data.models.DataFailureException
-import com.example.stushare.core.data.models.Document
+// ⭐️ XÓA: import com.example.stushare.core.data.models.Document (Không cần)
 import com.example.stushare.core.data.repository.DocumentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.text.Normalizer
+// ⭐️ XÓA: import java.text.Normalizer (Không còn dùng removeAccents)
 import javax.inject.Inject
 
 // ⭐️ THÊM IMPORT: Giờ đây chúng ta "nhập" SearchUiState từ file riêng
@@ -44,7 +44,7 @@ class SearchResultViewModel @Inject constructor(
     }
 
     // --------------------
-    // HÀM CHÍNH: Xử lý tìm kiếm (Logic được chuyển từ SearchViewModel cũ)
+    // HÀM CHÍNH: Xử lý tìm kiếm (⭐️ ĐÃ CẬP NHẬT ⭐️)
     // --------------------
     fun performSearch(query: String) {
         viewModelScope.launch {
@@ -57,13 +57,9 @@ class SearchResultViewModel @Inject constructor(
                     e.printStackTrace() // Bỏ qua lỗi mạng, tìm trên cache
                 }
 
-                // 2. Lấy dữ liệu và lọc
-                val allDocuments = repository.getAllDocuments().first()
-                val normalizedQuery = removeAccents(query.trim().lowercase())
-                val results = allDocuments.filter { document ->
-                    val normalizedTitle = removeAccents(document.title.lowercase())
-                    normalizedTitle.contains(normalizedQuery)
-                }
+                // 2. ⭐️ THAY ĐỔI: GỌI TRỰC TIẾP VÀO DATABASE
+                // Không cần lọc thủ công hay removeAccents nữa.
+                val results = repository.searchDocuments(query.trim())
 
                 // 3. Cập nhật UI
                 if (results.isEmpty()) {
@@ -84,10 +80,6 @@ class SearchResultViewModel @Inject constructor(
     }
 
     // --------------------
-    // Hàm tiện ích: Xóa dấu tiếng Việt (Logic được chuyển từ SearchViewModel cũ)
+    // ⭐️ HÀM removeAccents() ĐÃ BỊ XÓA (Không còn cần thiết)
     // --------------------
-    private fun removeAccents(str: String): String {
-        val temp = Normalizer.normalize(str, Normalizer.Form.NFD)
-        return Regex("\\p{InCombiningDiacriticalMarks}+").replace(temp, "")
-    }
 }

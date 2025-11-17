@@ -34,12 +34,21 @@ interface DocumentDao {
 
     /**
      * Tìm kiếm tài liệu dựa trên title (tiêu đề) hoặc type (loại).
-     * Đây là thao tác 1 lần (không cần Flow) nên dùng suspend fun.
+     *
+     * ⭐️ ĐÃ CẬP NHẬT ⭐️
+     * Thêm COLLATE NOCASE (không phân biệt hoa/thường)
+     * và COLLATE NOACCENT (không phân biệt dấu)
      */
-    @Query("SELECT * FROM documents WHERE title LIKE '%' || :query || '%' OR type LIKE '%' || :query || '%'")
+    @Query(
+        "SELECT * FROM documents " +
+                "WHERE (title LIKE '%' || :query || '%' COLLATE NOCASE COLLATE NOACCENT) " +
+                "OR (type LIKE '%' || :query || '%' COLLATE NOCASE COLLATE NOACCENT)"
+    )
     suspend fun searchDocuments(query: String): List<Document>
+
     @Query("SELECT * FROM documents WHERE type = :type")
     fun getDocumentsByType(type: String): Flow<List<Document>>
+
     // (Bạn có thể thêm các hàm @Update và @Delete ở đây nếu cần)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllDocuments(documents: List<Document>)

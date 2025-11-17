@@ -28,6 +28,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.stushare.core.data.models.Document
 import com.example.stushare.ui.theme.PrimaryGreen
+// ⭐️ IMPORT MỚI ⭐️
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun DocumentDetailScreen(
@@ -37,12 +40,27 @@ fun DocumentDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // ⭐️ BƯỚC 1: THIẾT LẬP SNACKBARHOSTSTATE ⭐️
+    val snackbarHostState = remember { SnackbarHostState() }
+
     // Gọi hàm getDocumentById MỘT LẦN khi màn hình được tạo
     LaunchedEffect(key1 = documentId) {
         viewModel.getDocumentById(documentId)
     }
 
+    // ⭐️ BƯỚC 2: LẮNG NGHE SỰ KIỆN TỪ VIEWMODEL ⭐️
+    LaunchedEffect(key1 = Unit) {
+        viewModel.snackbarEvent.collectLatest { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+    // ⭐️ KẾT THÚC BƯỚC 2 ⭐️
+
     Scaffold(
+        // ⭐️ BƯỚC 3: THÊM SNACKBARHOST VÀO SCAFFOLD ⭐️
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        // ⭐️ KẾT THÚC BƯỚC 3 ⭐️
+
         // Phần footer "Viết bình luận" (giống Figma)
         bottomBar = {
             Surface(
@@ -130,7 +148,7 @@ private fun DetailHeader(onBackClick: () -> Unit) {
     }
 }
 
-// Nội dung chính (Ảnh bìa, info,...) - ĐÃ CẬP NHẬT
+// Nội dung chính (Ảnh bìa, info,...) - (Không thay đổi)
 @Composable
 private fun DetailContent(document: Document, viewModel: DocumentDetailViewModel) { // <-- NHẬN VIEWMODEL
     Column(
@@ -218,7 +236,7 @@ private fun DetailContent(document: Document, viewModel: DocumentDetailViewModel
     }
 }
 
-// Component nhỏ cho "Mô tả", "Thông tin thêm"...
+// Component nhỏ cho "Mô tả", "Thông tin thêm"... (Không thay đổi)
 @Composable
 private fun DetailInfoSection(title: String, content: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -229,7 +247,7 @@ private fun DetailInfoSection(title: String, content: String) {
     }
 }
 
-// Component nhỏ cho chip thông số (Rating, Download)
+// Component nhỏ cho chip thông số (Rating, Download) (Không thay đổi)
 @Composable
 private fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, tint: Color = LocalContentColor.current) {
     Row(verticalAlignment = Alignment.CenterVertically) {

@@ -17,6 +17,9 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// ⭐️ IMPORT HẰNG SỐ MỚI ⭐️
+import com.example.stushare.core.utils.AppConstants
+
 // UiState (Định nghĩa bên ngoài Class)
 sealed interface ViewAllUiState {
     data object Loading : ViewAllUiState
@@ -46,12 +49,13 @@ class ViewAllViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = ViewAllUiState.Loading
 
-            // Ánh xạ (Map) category từ UI sang 'type' trong DB
+            // ⭐️ THAY ĐỔI: Ánh xạ (Map) category từ UI sang 'type' trong DB ⭐️
             val databaseType = when (category) {
-                "new_uploads" -> "Sách"
-                "exam_prep" -> "Tài Liệu"
+                AppConstants.CATEGORY_NEW_UPLOADS -> AppConstants.TYPE_BOOK
+                AppConstants.CATEGORY_EXAM_PREP -> AppConstants.TYPE_EXAM_PREP
                 else -> "" // Các loại không xác định sẽ trả về rỗng
             }
+            // ⭐️ KẾT THÚC THAY ĐỔI ⭐️
 
             try {
                 // 1. Luôn làm mới dữ liệu từ API trước
