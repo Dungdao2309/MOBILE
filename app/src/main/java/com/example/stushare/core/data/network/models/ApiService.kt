@@ -1,6 +1,6 @@
 package com.example.stushare.core.data.network.models
 
-import com.example.stushare.core.data.models.DocumentRequest
+// ⭐️ XÓA: import com.example.stushare.core.data.models.DocumentRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -35,16 +35,5 @@ interface ApiService {
     // =======================
     // 📬 YÊU CẦU (Requests)
     // =======================
-
-    /**
-     * Lấy tất cả yêu cầu tài liệu.
-     */
-    @GET("requests")
-    suspend fun getAllRequests(): List<RequestDto>
-
-    /**
-     * Gửi yêu cầu tài liệu mới.
-     */
-    @POST("requests")
-    suspend fun createRequest(@Body request: RequestDto): RequestDto
+    // ⭐️ CÁC HÀM CŨ ĐÃ BỊ XÓA ⭐️
 }

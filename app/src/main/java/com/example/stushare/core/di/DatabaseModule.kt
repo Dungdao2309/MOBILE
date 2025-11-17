@@ -4,8 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.example.stushare.core.data.db.AppDatabase
 import com.example.stushare.core.data.db.DocumentDao
-import com.example.stushare.core.data.db.RequestDao
-// Import các lớp cần thiết
+// ⭐️ XÓA: import com.example.stushare.core.data.db.RequestDao
 import com.example.stushare.core.data.network.models.ApiService
 import com.example.stushare.core.data.repository.DocumentRepository
 import com.example.stushare.core.data.repository.DocumentRepositoryImpl
@@ -18,54 +17,55 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+// ⭐️ IMPORT THÊM:
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    // 1. Cung cấp AppDatabase Singleton
+    // 1. Cung cấp AppDatabase (Chỉ còn Document)
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
         return Room.databaseBuilder(
-            context.applicationContext, // Dùng applicationContext
+            context.applicationContext,
             AppDatabase::class.java,
-            "stushare_database" // Tên database
+            "stushare_database"
         )
-            .fallbackToDestructiveMigration() // Cần thiết khi tăng version
+            .fallbackToDestructiveMigration()
             .build()
     }
 
-    // 2. Cung cấp các DAO (Hilt sẽ tự động lấy AppDatabase từ hàm trên)
+    // 2. Cung cấp DocumentDao (Giữ nguyên)
     @Provides
     fun provideDocumentDao(database: AppDatabase): DocumentDao {
         return database.documentDao()
     }
 
-    @Provides
-    fun provideRequestDao(database: AppDatabase): RequestDao {
-        return database.requestDao()
-    }
+    // ⭐️ HÀM provideRequestDao() ĐÃ BỊ XÓA ⭐️
 
-    // 3. BỔ SUNG: Cung cấp DocumentRepository
-    // Hilt sẽ tự lấy DocumentDao (từ hàm 2) và ApiService (từ NetworkModule)
+    // 3. Cung cấp DocumentRepository (Giữ nguyên)
     @Provides
     @Singleton
     fun provideDocumentRepository(
         documentDao: DocumentDao,
         apiService: ApiService,
-        settingsRepository: SettingsRepository // <-- 1. Thêm tham số này
+        settingsRepository: SettingsRepository
     ): DocumentRepository {
         return DocumentRepositoryImpl(documentDao, apiService, settingsRepository)
     }
 
-    // 4. BỔ SUNG: Cung cấp RequestRepository (Đây là hàm giải quyết lỗi của bạn)
+    // 4. Cung cấp RequestRepository (⭐️ ĐÃ CẬP NHẬT ⭐️)
     @Provides
     @Singleton
     fun provideRequestRepository(
-        requestDao: RequestDao,
-        apiService: ApiService
+        // ⭐️ THAY ĐỔI: Inject Firestore (từ FirebaseModule)
+        firestore: FirebaseFirestore
+        // ⭐️ XÓA: requestDao: RequestDao
+        // ⭐️ XÓA: apiService: ApiService
     ): RequestRepository {
-        return RequestRepositoryImpl(requestDao, apiService)
+        // ⭐️ THAY ĐỔI: Trả về Impl mới
+        return RequestRepositoryImpl(firestore)
     }
 }

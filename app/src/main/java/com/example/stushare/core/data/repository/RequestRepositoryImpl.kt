@@ -1,73 +1,77 @@
 package com.example.stushare.core.data.repository
 
-import com.example.stushare.core.data.db.RequestDao
 import com.example.stushare.core.data.models.DocumentRequest
-import com.example.stushare.core.data.network.models.ApiService
-import com.example.stushare.core.data.network.models.RequestDto
-import com.example.stushare.core.data.network.models.toRequestEntity
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.tasks.await
 import java.io.IOException
-import java.util.UUID
 import javax.inject.Inject
+// ⭐️ IMPORT THÊM:
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 
 class RequestRepositoryImpl @Inject constructor(
-    private val requestDao: RequestDao,
-    private val apiService: ApiService
+    // ⭐️ THAY ĐỔI: Inject Firestore
+    private val firestore: FirebaseFirestore
+    // ⭐️ XÓA: requestDao: RequestDao
+    // ⭐️ XÓA: apiService: ApiService
 ) : RequestRepository {
 
-    override fun getAllRequests(): Flow<List<DocumentRequest>> {
-        // Luôn lắng nghe Database
-        return requestDao.getAllRequests()
-    }
+    // Định nghĩa tên bộ sưu tập (collection)
+    private val requestsCollection = firestore.collection("requests")
 
-    override suspend fun refreshRequests() {
-        // Lấy từ API và lưu vào DB
-        try {
-            val networkRequests = apiService.getAllRequests()
-            requestDao.insertAllRequests(networkRequests.map { it.toRequestEntity() })
-        } catch (e: Exception) {
-            e.printStackTrace()
+    /**
+     * Lắng nghe TẤT CẢ yêu cầu từ Firestore TRONG THỜI GIAN THỰC.
+     */
+    override fun getAllRequests(): Flow<List<DocumentRequest>> {
+        // ⭐️ THAY ĐỔI: Dùng callbackFlow để lắng nghe snapshot
+        return callbackFlow {
+            // Sắp xếp theo ngày tạo mới nhất (dựa trên trường @ServerTimestamp)
+            val listenerRegistration = requestsCollection
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        close(error) // Đóng Flow nếu có lỗi
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        // "Dịch" các tài liệu Firestore sang List<DocumentRequest>
+                        val requests = snapshot.toObjects(DocumentRequest::class.java)
+                        trySend(requests) // Gửi danh sách mới
+                    }
+                }
+            // Khi Flow bị hủy (ví dụ: ViewModel bị hủy), gỡ bỏ listener
+            awaitClose { listenerRegistration.remove() }
         }
     }
 
     /**
-     * Tạo một yêu cầu mới.
-     * (ĐÃ CẢI TIẾN ĐỂ BỎ QUA API VÌ my-json-server KHÔNG HỖ TRỢ POST)
+     * ⭐️ XÓA: Hàm refreshRequests() đã bị xóa (vì không cần nữa)
+     */
+
+    /**
+     * Tạo một yêu cầu mới trên Firestore.
      */
     override suspend fun createRequest(title: String, subject: String, description: String) {
-
-        // 1. Tạo một Entity (Database object) MỚI
-        val newLocalRequest = DocumentRequest(
-            id = UUID.randomUUID().toString(), // Tạo ID ngẫu nhiên
-            title = "$title ($subject)", // Ghép title và subject
-            authorName = "Người Dùng Hiện Tại" // (Giả)
-        )
-
-        // 2. LƯU THẲNG VÀO DATABASE (Bỏ qua API)
         try {
-            // Logic này sẽ khiến Flow ở RequestListViewModel tự động cập nhật!
-            requestDao.insertRequest(newLocalRequest)
+            // 1. Tạo đối tượng model MỚI
+            val newRequest = DocumentRequest(
+                title = title,
+                subject = subject,
+                description = description,
+                authorName = "Người Dùng (Auth)" // Tạm thời hardcode, sẽ thay bằng user
+                // createdAt và id sẽ được Firestore tự động thêm
+            )
+
+            // 2. Thêm vào bộ sưu tập "requests"
+            // .await() sẽ tạm ngưng coroutine cho đến khi Firebase xác nhận
+            requestsCollection.add(newRequest).await()
+
         } catch (e: Exception) {
             e.printStackTrace()
+            // (Bạn có thể ném một lỗi tùy chỉnh để ViewModel bắt)
+            throw IOException("Không thể tạo yêu cầu", e)
         }
-
-        /* // ----- KHỐI CODE GỌI API (TẠM THỜI TẮT) -----
-        // (Khi có API thật, bạn hãy mở khối này ra và xóa code "LƯU THẲNG" ở trên)
-
-        val newRequestDto = RequestDto(
-            id = UUID.randomUUID().toString(),
-            title = "$title ($subject)",
-            authorName = "Người Dùng Hiện Tại"
-        )
-
-        try {
-            // 1. Gửi (POST) lên API
-            val createdDto = apiService.createRequest(newRequestDto)
-            // 2. Lưu kết quả trả về vào Database
-            requestDao.insertRequest(createdDto.toRequestEntity())
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        */
     }
 }

@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.kapt) apply true
     alias(libs.plugins.google.dagger.hilt)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -55,7 +56,15 @@ android {
 
 
 dependencies {
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    // ⭐: THÊM FIREBASE
+    // Thêm Firebase Bill of Materials (BOM)
+    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
+    // Thêm thư viện Cloud Firestore KTX (cho coroutines)
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-firestore")
+    // Thêm Firebase Authentication (Bạn sẽ cần sớm)
+    implementation("com.google.firebase:firebase-auth")
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation(libs.androidx.compose.material3.windowSizeClass)
     // Hilt
     implementation(libs.hilt.android)

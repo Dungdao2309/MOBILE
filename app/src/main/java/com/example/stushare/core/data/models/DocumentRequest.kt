@@ -1,12 +1,26 @@
 package com.example.stushare.core.data.models
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+// ⭐️ XÓA: import androidx.room.Entity
+// ⭐️ XÓA: import androidx.room.PrimaryKey
+import com.google.firebase.firestore.DocumentId
+import com.google.firebase.firestore.ServerTimestamp
+import java.util.Date
 
-@Entity(tableName = "requests") // Đánh dấu là bảng
+// ⭐️ XÓA: @Entity(tableName = "requests")
 data class DocumentRequest(
-    @PrimaryKey // Đánh dấu khóa chính
-    val id: String,
-    val title: String,
-    val authorName: String
-)
+    // ⭐️ THÊM: @DocumentId sẽ tự động gán ID của tài liệu Firestore vào đây
+    @DocumentId
+    val id: String = "", // Cung cấp giá trị mặc định
+    val title: String = "",
+    val authorName: String = "",
+
+    // ⭐️ CẢI TIẾN: Thêm các trường này để có nhiều thông tin hơn
+    val subject: String = "",
+    val description: String = "",
+
+    @ServerTimestamp // ⭐️ THÊM: Firestore sẽ tự động điền ngày giờ tạo
+    val createdAt: Date? = null
+) {
+    // ⭐️ THÊM: Cần một constructor rỗng để Firestore đọc dữ liệu
+    constructor() : this("", "", "", "", "", null)
+}
