@@ -19,25 +19,25 @@ import com.squareup.moshi.ToJson
 import com.squareup.moshi.JsonAdapter
 import java.lang.reflect.Type
 
+// ⭐️ IMPORT BẮT BUỘC
+import com.example.stushare.BuildConfig
+import java.util.concurrent.TimeUnit
+
 // =======================================================
-// SỬA LỖI: CẬP NHẬT FLOAT ADAPTER ĐỂ XỬ LÝ INT HOẶC DOUBLE
+// Custom Float Adapter của bạn (Giữ nguyên)
 // =======================================================
 class CustomFloatAdapter : JsonAdapter<Float>() {
-
     @FromJson
     override fun fromJson(reader: JsonReader): Float {
-        // Kiểm tra xem token tiếp theo là SỐ NGUYÊN hay SỐ THỰC
         return when (reader.peek()) {
-            JsonReader.Token.NUMBER -> reader.nextDouble().toFloat() // Nếu là 4.0
-            JsonReader.Token.STRING -> reader.nextString()?.toFloatOrNull() ?: 0.0f // Nếu là "4.0"
-            // Xử lý các trường hợp khác nếu cần
+            JsonReader.Token.NUMBER -> reader.nextDouble().toFloat()
+            JsonReader.Token.STRING -> reader.nextString()?.toFloatOrNull() ?: 0.0f
             else -> {
-                reader.skipValue() // Bỏ qua giá trị không mong muốn
+                reader.skipValue()
                 0.0f
             }
         }
     }
-
     @ToJson
     override fun toJson(writer: JsonWriter, value: Float?) {
         writer.value(value?.toDouble())
@@ -46,7 +46,6 @@ class CustomFloatAdapter : JsonAdapter<Float>() {
 
 object FloatAdapterFactory : JsonAdapter.Factory {
     override fun create(type: Type, annotations: Set<Annotation>, moshi: Moshi): JsonAdapter<*>? {
-        // Chỉ áp dụng cho kiểu Float (không phải Float?)
         if (type == Float::class.java || type == java.lang.Float::class.java) {
             return CustomFloatAdapter().nullSafe()
         }
@@ -62,40 +61,54 @@ object NetworkModule {
 
     private const val BASE_URL = "https://my-json-server.typicode.com/nqthien1509/stushare-api/"
 
-    // 1. "Dạy" Hilt cách tạo Moshi
+    // 1. "Dạy" Hilt cách tạo Moshi (Giữ nguyên)
     @Provides
     @Singleton
     fun provideMoshi(): Moshi {
         return Moshi.Builder()
-            // SỬA LỖI: Đăng ký Adapter dưới dạng Factory
-            .add(FloatAdapterFactory) // <-- SỬ DỤNG FACTORY ĐÃ SỬA
+            .add(FloatAdapterFactory)
             .add(KotlinJsonAdapterFactory())
             .build()
     }
 
-    // 2. "Dạy" Hilt cách tạo OkHttpClient
+    // 2. "Dạy" Hilt cách tạo OkHttpClient (⭐️ ĐÃ CẬP NHẬT)
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        // 1. Tạo Interceptor
         val logging = HttpLoggingInterceptor()
-        logging.setLevel(HttpLoggingInterceptor.Level.BODY)
+
+        // 2. ⭐️ CẢI TIẾN BẢO MẬT (LOGGING) ⭐️
+        // Chỉ log chi tiết (BODY) khi đang ở build DEBUG
+        // Tắt log (NONE) khi build RELEASE (cho người dùng)
+        if (BuildConfig.DEBUG) {
+            logging.setLevel(HttpLoggingInterceptor.Level.BODY)
+        } else {
+            logging.setLevel(HttpLoggingInterceptor.Level.NONE)
+        }
+
+        // 3. Xây dựng Client
         return OkHttpClient.Builder()
-            .addInterceptor(logging)
+            .addInterceptor(logging) // Thêm logging interceptor
+            // ⭐️ GỢI Ý THÊM: Thêm timeouts để app ổn định hơn
+            .connectTimeout(30, TimeUnit.SECONDS) // Thời gian chờ kết nối
+            .readTimeout(30, TimeUnit.SECONDS)    // Thời gian chờ đọc
+            .writeTimeout(30, TimeUnit.SECONDS)   // Thời gian chờ ghi
             .build()
     }
 
-    // 3. "Dạy" Hilt cách tạo Retrofit
+    // 3. "Dạy" Hilt cách tạo Retrofit (Giữ nguyên)
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(okHttpClient)
+            .client(okHttpClient) // <-- Tự động nhận OkHttpClient đã được cập nhật
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
 
-    // 4. "Dạy" Hilt cách tạo ApiService
+    // 4. "Dạy" Hilt cách tạo ApiService (Giữ nguyên)
     @Provides
     @Singleton
     fun provideApiService(retrofit: Retrofit): ApiService {

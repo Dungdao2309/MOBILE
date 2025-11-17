@@ -11,6 +11,7 @@ import com.example.stushare.core.data.repository.DocumentRepository
 import com.example.stushare.core.data.repository.DocumentRepositoryImpl
 import com.example.stushare.core.data.repository.RequestRepository
 import com.example.stushare.core.data.repository.RequestRepositoryImpl
+import com.example.stushare.core.data.repository.SettingsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -52,9 +53,10 @@ object DatabaseModule {
     @Singleton
     fun provideDocumentRepository(
         documentDao: DocumentDao,
-        apiService: ApiService
+        apiService: ApiService,
+        settingsRepository: SettingsRepository // <-- 1. Thêm tham số này
     ): DocumentRepository {
-        return DocumentRepositoryImpl(documentDao, apiService)
+        return DocumentRepositoryImpl(documentDao, apiService, settingsRepository)
     }
 
     // 4. BỔ SUNG: Cung cấp RequestRepository (Đây là hàm giải quyết lỗi của bạn)

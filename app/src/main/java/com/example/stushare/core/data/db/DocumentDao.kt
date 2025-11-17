@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao // Đánh dấu đây là Data Access Object
 interface DocumentDao {
-
+    @Query("DELETE FROM documents") // <-- Tên bảng của bạn
+    suspend fun deleteAllDocuments()
     /**
      * Lấy TẤT CẢ tài liệu từ database.
      * Trả về một Flow, tự động cập nhật UI khi data thay đổi.

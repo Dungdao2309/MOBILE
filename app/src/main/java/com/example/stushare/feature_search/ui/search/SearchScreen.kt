@@ -1,3 +1,5 @@
+// File: SearchScreen.kt (Đã cải tiến - Tách biệt trách nhiệm)
+
 package com.example.stushare.features.feature_search.ui.search
 
 import androidx.compose.foundation.background
@@ -16,11 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// Thêm các imports cho ViewModel và Lifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stushare.features.feature_search.ui.search.SearchViewModel
-import com.example.stushare.features.feature_search.ui.search.SearchUiState
+// ⭐️ XÓA: import com.example.stushare.features.feature_search.ui.search.SearchUiState
 
 // Import các component và Theme
 import com.example.stushare.features.feature_search.ui.components.SearchTagChip
@@ -32,21 +33,21 @@ import com.example.stushare.ui.theme.PrimaryGreen
 fun SearchScreen(
     onBackClick: () -> Unit,
     onSearchSubmit: (String) -> Unit,
-    // SỬA LỖI: Nhận ViewModel từ AppNavigation
-    viewModel: SearchViewModel
+    // ⭐️ THAY ĐỔI: ViewModel giờ được Hilt tự động cung cấp
+    viewModel: SearchViewModel = hiltViewModel()
 ) {
     val currentQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // ⭐️ XÓA: val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val recentSearches = remember { listOf("Lập trình mobile", "Triết", "Kỹ thuật lập trình", "Hệ điều hành", "Mạng máy tính") }
     val suggestions = remember { listOf("Pháp luật đại cương", "Công nghệ phần mềm", "Khoa CNTT", "#dethi") }
 
-    // 🛑 SỬA LỖI VÒNG LẶP ĐIỀU HƯỚNG
-    LaunchedEffect(uiState) {
-        if (uiState is SearchUiState.Success) {
+    // ⭐️ THAY ĐỔI: Lắng nghe sự kiện điều hướng (navigationEvent)
+    LaunchedEffect(Unit) { // Chỉ chạy một lần
+        viewModel.navigationEvent.collect { query ->
             // 1. Điều hướng sang màn hình kết quả
-            onSearchSubmit(currentQuery)
-            // 2. Reset trạng thái ViewModel về Initial
+            onSearchSubmit(query)
+            // 2. (Không cần reset state nữa)
         }
     }
 
@@ -63,7 +64,8 @@ fun SearchScreen(
             onQueryChange = { viewModel.onQueryChanged(it) },
             onSearchClick = {
                 if (currentQuery.isNotBlank()) {
-                    viewModel.performSearch(currentQuery)
+                    // ⭐️ THAY ĐỔI: Gọi hàm "trigger" mới
+                    viewModel.onSearchTriggered(currentQuery)
                 }
             }
         )
@@ -78,40 +80,21 @@ fun SearchScreen(
                 .padding(16.dp)
         ) {
 
-            // XỬ LÝ TRẠNG THÁI UI
-            when (uiState) {
-                is SearchUiState.Loading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
+            // ⭐️ THAY ĐỔI: Đã xóa toàn bộ khối `when (uiState)`
+            // Màn hình này giờ chỉ hiển thị Lịch sử và Gợi ý
 
-                is SearchUiState.Empty -> {
-                    Text("Không tìm thấy kết quả cho \"$currentQuery\"", fontWeight = FontWeight.SemiBold)
-                    Text("Vui lòng thử từ khóa khác.", color = Color.Gray)
-                }
+            SearchHistorySection(
+                searches = recentSearches,
+                onChipClick = { tag -> viewModel.onQueryChanged(tag) },
+                onClearClick = { /* Xử lý xóa lịch sử */ }
+            )
 
-                is SearchUiState.Error -> {
-                    val message = (uiState as SearchUiState.Error).message
-                    Text("Lỗi: $message", color = Color.Red, fontWeight = FontWeight.Bold)
-                }
+            Spacer(modifier = Modifier.height(24.dp))
 
-                // Khi trạng thái là Initial (hoặc Success vừa được reset)
-                is SearchUiState.Initial, is SearchUiState.Success -> {
-                    SearchHistorySection(
-                        searches = recentSearches,
-                        onChipClick = { tag -> viewModel.onQueryChanged(tag) },
-                        onClearClick = { /* Xử lý xóa lịch sử */ }
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    SuggestionSection(
-                        suggestions = suggestions,
-                        onChipClick = { tag -> viewModel.onQueryChanged(tag) }
-                    )
-                }
-            }
+            SuggestionSection(
+                suggestions = suggestions,
+                onChipClick = { tag -> viewModel.onQueryChanged(tag) }
+            )
         }
     }
 }
@@ -126,6 +109,7 @@ private fun SearchHeader(
     onQueryChange: (String) -> Unit,
     onSearchClick: () -> Unit
 ) {
+    // (Hàm này giữ nguyên, không cần thay đổi gì)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -169,6 +153,7 @@ private fun SearchHeader(
                 cursorColor = PrimaryGreen
             ),
             trailingIcon = {
+                // ⭐️ LƯU Ý: onSearchClick đã được cập nhật ở Composable cha
                 IconButton(onClick = onSearchClick) {
                     Icon(Icons.Default.Search, "Tìm kiếm", tint = Color.Gray)
                 }
@@ -185,6 +170,7 @@ private fun SearchHistorySection(
     onChipClick: (String) -> Unit,
     onClearClick: () -> Unit
 ) {
+    // (Hàm này giữ nguyên)
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -215,6 +201,7 @@ private fun SuggestionSection(
     suggestions: List<String>,
     onChipClick: (String) -> Unit
 ) {
+    // (Hàm này giữ nguyên)
     Column {
         Text("Gợi ý cho bạn", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))

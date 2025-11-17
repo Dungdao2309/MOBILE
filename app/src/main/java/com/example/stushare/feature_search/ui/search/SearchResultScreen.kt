@@ -1,14 +1,38 @@
-package com.example.stushare.features.feature_search.ui.search
+// File: SearchResultScreen.kt (Đã cải tiến - Tách biệt trách nhiệm)
+
+package com.example.stushare.feature_search.ui.search
 
 // Imports cơ bản
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+
+// Imports rõ ràng cho Material 3
+// ⭐️ XÓA: import androidx.compose.material3.TextButton (không cần nữa)
+
+// Imports của dự án
+import com.example.stushare.feature_search.ui.search.SearchUiState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,47 +41,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
-// Imports rõ ràng cho Material 3
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TextButton
-
-// Imports của dự án
 import com.example.stushare.core.data.models.Document
 import com.example.stushare.features.feature_home.ui.components.DocumentCard
+import com.example.stushare.features.feature_search.ui.search.SearchResultViewModel
 import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchResultScreen(
-    query: String,
+    // ⭐️ XÓA: query: String,
     onBackClick: () -> Unit,
     onDocumentClick: (Long) -> Unit, // Mong đợi kiểu Long
-    // SỬA LỖI: Nhận ViewModel từ AppNavigation
-    viewModel: SearchViewModel
+    // ⭐️ THAY ĐỔI: Sử dụng ViewModel mới, được Hilt tự động cung cấp
+    viewModel: SearchResultViewModel = hiltViewModel()
 ) {
-    // Lắng nghe trạng thái từ ViewModel DÙNG CHUNG
+    // ⭐️ Lấy state và query từ ViewModel MỚI
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    // XÓA BỎ LỖI LOGIC: Khối LaunchedEffect(query) đã bị xóa.
-    // Màn hình này không nên tự ý tìm kiếm lại.
+    val query = viewModel.query // Lấy query từ ViewModel
 
     Scaffold(
         topBar = {
             SearchResultTopBar(
-                query = query,
+                query = query, // Truyền query vào TopBar
                 onBackClick = {
-                    // ⭐️ THÊM LOGIC VÀO ĐÂY ⭐️
-                    // 1. Reset trạng thái ViewModel TRƯỚC KHI quay lại
-                    viewModel.navigationHandled()
-                    // 2. Gọi hành động quay lại (để NavController xử lý)
+                    // ⭐️ ĐƠN GIẢN HÓA: Chỉ cần gọi onBackClick
+                    // Không cần reset state thủ công nữa.
                     onBackClick()
                 }
             )
@@ -68,47 +76,42 @@ fun SearchResultScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // SỬA LỖI LOGIC: Tách biệt Initial và Loading
             when (val state = uiState) {
                 is SearchUiState.Loading -> {
-                    // Chỉ hiển thị Loading khi ViewModel thực sự đang tải
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = PrimaryGreen)
                     }
                 }
-
                 is SearchUiState.Success -> {
-                    // Hiển thị kết quả
                     SearchResultList(
                         documents = state.results,
                         onDocumentClick = onDocumentClick
                     )
                 }
-
                 is SearchUiState.Empty -> {
-                    // Hiển thị không có kết quả
                     EmptyResult(query = query)
                 }
-
                 is SearchUiState.Error -> {
-                    // Hiển thị lỗi
                     ErrorMessage(message = state.message)
                 }
-
                 is SearchUiState.Initial -> {
-                    // Nếu trạng thái bị reset (do nhấn Back), hiển thị Empty
-                    EmptyResult(query = query)
+                    // Trạng thái này không nên xảy ra, nhưng nếu có,
+                    // cứ hiển thị Loading.
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = PrimaryGreen)
+                    }
                 }
             }
         }
     }
 }
 
-// --- Component TopBar (SỬA LỖI BIÊN DỊCH) ---
+// --- Component TopBar (Giữ nguyên) ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchResultTopBar(query: String, onBackClick: () -> Unit) {
+    // (Hàm này giữ nguyên, không cần thay đổi)
     TopAppBar(
         title = {
             Text(
@@ -125,7 +128,6 @@ private fun SearchResultTopBar(query: String, onBackClick: () -> Unit) {
                 )
             }
         },
-        // SỬA LỖI BIÊN DỊCH: Dùng TopAppBarDefaults.topAppBarColors()
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.White,
             titleContentColor = Color.Black
@@ -133,13 +135,14 @@ private fun SearchResultTopBar(query: String, onBackClick: () -> Unit) {
     )
 }
 
-// --- Component Hiển thị Danh sách Kết quả ---
+// --- Component Hiển thị Danh sách Kết quả (Giữ nguyên) ---
 
 @Composable
 private fun SearchResultList(
     documents: List<Document>,
     onDocumentClick: (Long) -> Unit
 ) {
+    // (Hàm này giữ nguyên, không cần thay đổi)
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -153,7 +156,6 @@ private fun SearchResultList(
             )
         }
         items(documents) { document ->
-            // Giả định document.id là Long (theo lỗi trước đó)
             DocumentCard(
                 document = document,
                 onClick = { onDocumentClick(document.id) }
@@ -166,6 +168,7 @@ private fun SearchResultList(
 
 @Composable
 private fun EmptyResult(query: String) {
+    // (Hàm này giữ nguyên, không cần thay đổi)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -198,6 +201,7 @@ private fun EmptyResult(query: String) {
 
 @Composable
 private fun ErrorMessage(message: String) {
+    // (Hàm này giữ nguyên, không cần thay đổi)
     Box(
         modifier = Modifier
             .fillMaxSize()

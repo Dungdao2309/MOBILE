@@ -21,4 +21,5 @@ interface DocumentRepository {
     suspend fun insertDocument(document: Document)
 
     suspend fun refreshDocuments()
+    suspend fun refreshDocumentsIfStale()
 }

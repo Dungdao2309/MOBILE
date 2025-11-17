@@ -1,4 +1,4 @@
-// File: HomeViewModel.kt (Đã sửa lỗi logic isLoading)
+// File: HomeViewModel.kt (Đã cập nhật logic Caching ⭐️)
 
 package com.example.stushare.features.feature_home.ui.home
 
@@ -23,7 +23,6 @@ data class HomeUiState(
     val avatarUrl: String = "https://i.imgur.com/4z3316U.png",
     val newDocuments: List<Document> = emptyList(),
     val examDocuments: List<Document> = emptyList(),
-    // SỬA LỖI: Đặt isLoading = true làm giá trị mặc định
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null
@@ -31,14 +30,15 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    // ⭐️ LƯU Ý: Đảm bảo đây là interface "DocumentRepository"
     private val repository: DocumentRepository,
     private val getNewDocumentsUseCase: GetNewDocumentsUseCase,
     private val getExamDocumentsUseCase: GetExamDocumentsUseCase,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
+    // (Tất cả code từ 1 đến 2 và hàm init/collectDocumentFlows giữ nguyên)
     // 1. TÀI SẢN HỖ TRỢ CHÍNH (UI State)
-    // Giờ đây nó sẽ tự động bắt đầu với isLoading = true
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -50,11 +50,8 @@ class HomeViewModel @Inject constructor(
             initialValue = "Tên Sinh Viên"
         )
 
-
     init {
         collectDocumentFlows()
-        // Gọi refreshData với isInitialLoad = true
-        // Hàm này giờ sẽ chịu trách nhiệm set isLoading = false
         refreshData(isInitialLoad = true)
     }
 
@@ -66,7 +63,6 @@ class HomeViewModel @Inject constructor(
             getNewDocumentsUseCase().collect { newDocs ->
                 _uiState.value = _uiState.value.copy(
                     newDocuments = newDocs
-                    // ⭐️ SỬA LỖI: Đã xóa "isLoading = false" khỏi đây
                 )
             }
         }
@@ -75,13 +71,13 @@ class HomeViewModel @Inject constructor(
             getExamDocumentsUseCase().collect { examDocs ->
                 _uiState.value = _uiState.value.copy(
                     examDocuments = examDocs
-                    // ⭐️ SỬA LỖI: Đã xóa "isLoading = false" khỏi đây
                 )
             }
         }
     }
 
     /**
+     * ⭐️ HÀM ĐÃ ĐƯỢC CẬP NHẬT ⭐️
      * Gọi Repository để làm mới dữ liệu (API -> ROOM)
      */
     fun refreshData(isInitialLoad: Boolean = false) {
@@ -90,12 +86,13 @@ class HomeViewModel @Inject constructor(
                 if (!isInitialLoad) {
                     _uiState.value = _uiState.value.copy(isRefreshing = true, errorMessage = null, isLoading = true)
                 } else {
-                    // Đảm bảo cờ isLoading là true khi bắt đầu tải lần đầu
                     _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
                 }
 
-                // (Gợi ý Cải tiến 1: nên gọi hàm refreshDocumentsIfStale() ở đây)
-                repository.refreshDocuments()
+                // ⭐️ THAY ĐỔI DUY NHẤT:
+                // Đã thay thế hàm refresh() cũ bằng hàm refreshIfStale() mới.
+                // Giờ đây, API sẽ CHỈ được gọi nếu đã quá 15 phút.
+                repository.refreshDocumentsIfStale()
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -110,12 +107,10 @@ class HomeViewModel @Inject constructor(
                     errorMessage = errorMessage
                 )
             } finally {
-                // ⭐️ SỬA LỖI QUAN TRỌNG:
-                // Chỉ sau khi refresh (thành công hoặc thất bại)
-                // chúng ta mới được phép tắt các cờ loading.
+                // (Phần finally giữ nguyên)
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false,
-                    isLoading = false // <-- Dòng này sẽ tắt Skeleton UI
+                    isLoading = false
                 )
             }
         }
