@@ -18,17 +18,17 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.HttpException
 import retrofit2.Response
 
-// LƯU Ý: CẦN THÊM CÁC DÒNG IMPORT SAU VÀO ĐẦU FILE NẾU BỊ LỖI
-// import org.junit.Assert.* // import kotlin.test.assertFailsWith
-
 @ExperimentalCoroutinesApi
 class DocumentRepositoryImplTest {
 
     private val mockDocumentDao: DocumentDao = mockk(relaxed = true)
     private val mockApiService: ApiService = mockk(relaxed = true)
+    // ⭐️ THAY ĐỔI 1: Thêm mock cho SettingsRepository
+    private val mockSettingsRepository: SettingsRepository = mockk(relaxed = true)
+
     private lateinit var repository: DocumentRepositoryImpl
 
-    // DATA GIẢ LẬP - ĐÃ KHẮC PHỤC LỖI THIẾU THAM SỐ VÀ SAI KIỂU DỮ LIỆU
+    // DATA GIẢ LẬP
     private val fakeDocumentDtoList = listOf(
         DocumentDto(
             id = "1",
@@ -36,9 +36,9 @@ class DocumentRepositoryImplTest {
             author = "User A",
             courseCode = "CS101",
             downloads = 10,
-            rating = 4.5f, // <-- Kiểu Float (cần hậu tố 'f')
+            rating = 4.5f,
             type = "Sách",
-            imageUrl = "http://fake.com/img1.jpg" // <-- Tham số giả định
+            imageUrl = "http://fake.com/img1.jpg"
         ),
         DocumentDto(
             id = "2",
@@ -46,20 +46,20 @@ class DocumentRepositoryImplTest {
             author = "User B",
             courseCode = "CS201",
             downloads = 5,
-            rating = 4.0f, // <-- Kiểu Float (cần hậu tố 'f')
+            rating = 4.0f,
             type = "Tài Liệu",
             imageUrl = "http://fake.com/img2.jpg"
         )
     )
 
     private val expectedEntityList = fakeDocumentDtoList.map {
-        // Hàm ánh xạ: Đảm bảo tồn tại DocumentDto.toDocumentEntity()
         it.toDocumentEntity()
     }
 
     @Before
     fun setup() {
-        repository = DocumentRepositoryImpl(mockDocumentDao, mockApiService)
+        // ⭐️ THAY ĐỔI 2: Truyền mockSettingsRepository vào Constructor
+        repository = DocumentRepositoryImpl(mockDocumentDao, mockApiService, mockSettingsRepository)
     }
 
     // -----------------------------------------------------------------
@@ -72,12 +72,16 @@ class DocumentRepositoryImplTest {
         repository.refreshDocuments()
 
         coVerify(exactly = 1) { mockApiService.getAllDocuments() }
+        // ⭐️ THAY ĐỔI 3 (Quan trọng): Kiểm tra xem hàm deleteAll có được gọi không (vì logic mới có xóa trước khi thêm)
+        coVerify(exactly = 1) { mockDocumentDao.deleteAllDocuments() }
         coVerify(exactly = 1) { mockDocumentDao.insertAllDocuments(expectedEntityList) }
+
+        // ⭐️ THAY ĐỔI 4: Kiểm tra xem timestamp có được cập nhật không
+        coVerify(exactly = 1) { mockSettingsRepository.updateLastRefreshTimestamp() }
     }
 
-    // -----------------------------------------------------------------
-    // KỊCH BẢN 2: REFRESH THẤT BẠI (LỖI MẠNG)
-    // -----------------------------------------------------------------
+    // (Các test case còn lại giữ nguyên, không cần sửa gì thêm)
+    // ...
     @Test
     fun `refreshDocuments_networkFailure_throwsNetworkError`() = runTest {
         coEvery { mockApiService.getAllDocuments() } throws IOException()
@@ -89,9 +93,6 @@ class DocumentRepositoryImplTest {
         coVerify(exactly = 0) { mockDocumentDao.insertAllDocuments(any()) }
     }
 
-    // -----------------------------------------------------------------
-    // KỊCH BẢN 3: REFRESH THẤT BẠI (LỖI HTTP KHÁC)
-    // -----------------------------------------------------------------
     @Test
     fun `refreshDocuments_httpFailure_throwsApiError`() = runTest {
         val errorCode = 404

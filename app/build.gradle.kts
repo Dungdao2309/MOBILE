@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.example.stushare"
-    compileSdk = 36 // <-- 1. ĐÃ SỬA LỖI CÚ PHÁP
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.stushare"
@@ -49,9 +49,7 @@ android {
         compose = true
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.3"
-    }
+    // ĐÃ XÓA: composeOptions { ... }
 }
 
 
@@ -69,6 +67,8 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
+    kaptTest(libs.hilt.compiler) // Đã thêm cho Unit Test
+    kaptAndroidTest(libs.hilt.compiler) // Đã thêm cho Android Test
     implementation(libs.hilt.navigation.compose)
     // Navigation
     implementation(libs.navigation.compose)
