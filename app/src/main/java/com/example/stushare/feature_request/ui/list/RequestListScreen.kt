@@ -1,15 +1,16 @@
-// ĐƯỜNG DẪN: .../feature_request/ui/list/RequestListScreen.kt
-
-package com.example.stushare.features.feature_request.ui.list
+package com.example.stushare.feature_request.ui.list
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,14 +19,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stushare.core.data.models.DocumentRequest
+import com.example.stushare.features.feature_request.ui.list.RequestListViewModel
 import com.example.stushare.ui.theme.LightGreen
 import com.example.stushare.ui.theme.PrimaryGreen
+import com.example.stushare.ui.theme.createShimmerBrush // Đảm bảo đã import cái này
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RequestListScreen(
     onBackClick: () -> Unit,
@@ -34,118 +40,335 @@ fun RequestListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .systemBarsPadding()
-    ) {
-        // PHẦN 1: HEADER
-        RequestListHeader(
-            onBackClick = onBackClick,
-            onCreateClick = onCreateRequestClick
-        )
-
-        // PHẦN 2: DANH SÁCH (Nội dung)
-        LazyColumn(
+    Scaffold(
+        // Nút tạo yêu cầu (+) ở góc dưới phải
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onCreateRequestClick,
+                containerColor = PrimaryGreen,
+                contentColor = Color.White,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Tạo yêu cầu mới")
+            }
+        }
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color.White)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .background(Color(0xFFF9F9F9)) // Nền xám nhạt
+                .padding(paddingValues)
         ) {
-            items(uiState.requests) { request ->
-                RequestCard(request = request, onReplyClick = { /*TODO*/ })
+            // 1. HEADER MÀU XANH
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                    .background(PrimaryGreen)
+                    .statusBarsPadding()
+                    .padding(vertical = 16.dp, horizontal = 8.dp)
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Quay về",
+                        tint = Color.White
+                    )
+                }
+
+                Text(
+                    text = "Cộng đồng hỏi đáp",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+
+            // 2. LOGIC HIỂN THỊ
+            when {
+                uiState.isLoading -> {
+                    // Gọi hàm Skeleton (được định nghĩa ở cuối file này)
+                    RequestListSkeleton()
+                }
+                uiState.requests.isEmpty() -> {
+                    EmptyRequestState(onCreateClick = onCreateRequestClick)
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(uiState.requests) { request ->
+                            RequestCard(request = request, onReplyClick = { /* TODO */ })
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-// Header màu xanh
 @Composable
-private fun RequestListHeader(
-    onBackClick: () -> Unit,
-    onCreateClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(PrimaryGreen)
-            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
-            .statusBarsPadding(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Quay về", tint = Color.White)
-            }
-            Text(
-                "Yêu cầu Tài liệu",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        // Nút "+ Tạo yêu cầu mới"
-        Button(
-            onClick = onCreateClick,
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Tạo yêu cầu mới", fontSize = 16.sp)
-        }
-    }
-}
-
-// Component cho 1 item trong danh sách
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun RequestCard(
+fun RequestCard(
     request: DocumentRequest,
     onReplyClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        onClick = { /*TODO: Xem chi tiết yêu cầu*/ }
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        Column(
+            modifier = Modifier.padding(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = request.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Người yêu cầu: ${request.authorName}",
-                    style = MaterialTheme.typography.bodySmall
-                )
+            if (request.subject.isNotBlank()) {
+                Surface(
+                    color = LightGreen,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                ) {
+                    Text(
+                        text = request.subject,
+                        color = PrimaryGreen,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            // Nút "Trả lời"
-            Button(
-                onClick = onReplyClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = LightGreen,
-                    contentColor = PrimaryGreen
-                ),
-                shape = RoundedCornerShape(12.dp)
+
+            Text(
+                text = request.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1A1A1A)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (request.description.isNotBlank()) {
+                Text(
+                    text = request.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF666666),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 22.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            Divider(color = Color.LightGray.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Trả lời")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = request.authorName.ifBlank { "Sinh viên ẩn danh" },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray
+                    )
+                }
+
+                Button(
+                    onClick = onReplyClick,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(32.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF0F0F0),
+                        contentColor = Color.Black
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChatBubbleOutline,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Trả lời", style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
+    }
+}
+
+@Composable
+fun EmptyRequestState(onCreateClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.ChatBubbleOutline,
+            contentDescription = null,
+            modifier = Modifier.size(100.dp),
+            tint = PrimaryGreen.copy(alpha = 0.3f)
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "Chưa có câu hỏi nào",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Hãy là người đầu tiên đặt câu hỏi để nhận được sự trợ giúp từ cộng đồng!",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = onCreateClick,
+            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+            shape = RoundedCornerShape(50)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Tạo yêu cầu ngay")
+        }
+    }
+}
+
+// --- CÁC HÀM SKELETON (Phần bạn có thể đang thiếu) ---
+
+@Composable
+fun RequestListSkeleton() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(5) {
+            RequestCardSkeleton()
+        }
+    }
+}
+
+@Composable
+fun RequestCardSkeleton() {
+    // Sử dụng hàm tạo hiệu ứng shimmer từ file Shimmer.kt
+    val brush = createShimmerBrush()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Badge giả
+            Box(
+                modifier = Modifier
+                    .width(100.dp)
+                    .height(24.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(brush)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Tiêu đề giả
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(20.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(brush)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(20.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(brush)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color.LightGray.copy(alpha = 0.3f))
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Footer giả
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(brush)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(14.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(brush)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(brush)
+                )
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RequestListScreenPreview() {
+    val sampleRequest = DocumentRequest(
+        title = "Xin đề thi cuối kỳ",
+        subject = "Toán cao cấp",
+        description = "Cần tìm đề...",
+        authorName = "Test User"
+    )
+    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF9F9F9))) {
+        // Mock Header for preview
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .background(PrimaryGreen)
+        )
+        RequestCard(request = sampleRequest, onReplyClick = {})
     }
 }

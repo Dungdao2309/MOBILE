@@ -1,5 +1,4 @@
 package com.example.stushare.ui.theme
-// File: ui/components/Shimmer.kt (Hoặc tên tương tự)
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -13,29 +12,43 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 @Composable
-fun createShimmerBrush(): Brush {
-    val shimmerColors = listOf(
-        Color.LightGray.copy(alpha = 0.6f),
-        Color.LightGray.copy(alpha = 0.2f),
-        Color.LightGray.copy(alpha = 0.6f),
-    )
+fun createShimmerBrush(
+    showShimmer: Boolean = true,
+    targetValue: Float = 1000f
+): Brush {
+    return if (showShimmer) {
+        val shimmerColors = listOf(
+            Color.LightGray.copy(alpha = 0.6f),
+            Color.LightGray.copy(alpha = 0.2f),
+            Color.LightGray.copy(alpha = 0.6f),
+        )
 
-    val transition = rememberInfiniteTransition(label = "ShimmerTransition")
-    val translateAnim = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1200,
-                easing = FastOutSlowInEasing
+        val transition = rememberInfiniteTransition(label = "ShimmerTransition")
+
+        val translateAnimation = transition.animateFloat(
+            initialValue = 0f,
+            targetValue = targetValue,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = 1000, // Tốc độ quét (ms)
+                    easing = FastOutSlowInEasing
+                ),
+                repeatMode = RepeatMode.Restart // Quét lặp lại từ đầu
             ),
-            repeatMode = RepeatMode.Restart
-        ), label = "ShimmerTranslate"
-    )
+            label = "ShimmerTranslate"
+        )
 
-    return Brush.linearGradient(
-        colors = shimmerColors,
-        start = Offset(x = translateAnim.value - 1000f, y = 0f),
-        end = Offset(x = translateAnim.value, y = 0f)
-    )
+        Brush.linearGradient(
+            colors = shimmerColors,
+            start = Offset(x = translateAnimation.value - targetValue, y = 0f),
+            end = Offset(x = translateAnimation.value, y = 0f)
+        )
+    } else {
+        // Trả về Brush trong suốt nếu không hiển thị shimmer
+        Brush.linearGradient(
+            colors = listOf(Color.Transparent, Color.Transparent),
+            start = Offset.Zero,
+            end = Offset.Zero
+        )
+    }
 }

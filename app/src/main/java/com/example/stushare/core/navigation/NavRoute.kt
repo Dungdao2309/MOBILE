@@ -4,7 +4,10 @@ import kotlinx.serialization.Serializable
 
 sealed interface NavRoute {
 
-    // 1. Các màn hình không có tham số
+    // ==========================================
+    // 1. Các màn hình chính (Bottom Navigation)
+    // ==========================================
+
     @Serializable
     data object Home : NavRoute
 
@@ -15,9 +18,18 @@ sealed interface NavRoute {
     data object RequestList : NavRoute
 
     @Serializable
+    data object Profile : NavRoute // <-- Đã thêm màn hình Cá nhân
+
+    // ==========================================
+    // 2. Các màn hình chức năng (Không tham số)
+    // ==========================================
+
+    @Serializable
     data object CreateRequest : NavRoute
 
-    // 2. Các màn hình CÓ tham số (Dùng biến trực tiếp!)
+    // ==========================================
+    // 3. Các màn hình chi tiết (Có tham số)
+    // ==========================================
 
     @Serializable
     data class DocumentDetail(val documentId: String) : NavRoute

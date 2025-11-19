@@ -11,16 +11,17 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.toRoute // <-- IMPORT QUAN TRỌNG
+import androidx.navigation.toRoute
 
 import com.example.stushare.core.navigation.NavRoute
-import com.example.stushare.features.feature_document_detail.ui.detail.DocumentDetailScreen
+import com.example.stushare.feature_document_detail.ui.detail.DocumentDetailScreen
+import com.example.stushare.feature_request.ui.list.RequestListScreen
 import com.example.stushare.features.feature_home.ui.home.HomeScreen
 import com.example.stushare.features.feature_home.ui.viewall.ViewAllScreen
 import com.example.stushare.features.feature_request.ui.create.CreateRequestScreen
-import com.example.stushare.features.feature_request.ui.list.RequestListScreen
 import com.example.stushare.features.feature_search.ui.search.SearchScreen
 import com.example.stushare.feature_search.ui.search.SearchResultScreen
+// Import màn hình Profile mới
 
 @Composable
 fun AppNavigation(
@@ -37,7 +38,7 @@ fun AppNavigation(
 
     NavHost(
         navController = navController,
-        startDestination = NavRoute.Home, // <-- Dùng Object, không dùng String
+        startDestination = NavRoute.Home,
         modifier = modifier,
         enterTransition = { fadeIn(animationSpec = tween(duration)) },
         exitTransition = { fadeOut(animationSpec = tween(duration)) },
@@ -54,7 +55,6 @@ fun AppNavigation(
                     navController.navigate(NavRoute.ViewAll(category))
                 },
                 onDocumentClick = { documentId ->
-                    // Truyền object DocumentDetail chứa id
                     navController.navigate(NavRoute.DocumentDetail(documentId))
                 },
                 onCreateRequestClick = { navController.navigate(NavRoute.CreateRequest) }
@@ -76,18 +76,14 @@ fun AppNavigation(
             )
         }
 
-        // 3. Màn hình Kết quả Tìm kiếm (CÓ THAM SỐ)
+        // 3. Màn hình Kết quả Tìm kiếm
         composable<NavRoute.SearchResult>(
             enterTransition = { slideIn },
             exitTransition = { slideOut },
             popEnterTransition = { popSlideIn },
             popExitTransition = { popSlideOut }
         ) { backStackEntry ->
-            // Lấy tham số an toàn bằng toRoute()
             val route = backStackEntry.toRoute<NavRoute.SearchResult>()
-
-            // SearchResultScreen có thể cần sửa để nhận query trực tiếp nếu ViewModel chưa hỗ trợ
-            // Nhưng hiện tại ViewModel đang lấy từ SavedStateHandle, ta cứ để vậy
             SearchResultScreen(
                 onBackClick = { navController.popBackStack() },
                 onDocumentClick = { documentId ->
@@ -96,7 +92,7 @@ fun AppNavigation(
             )
         }
 
-        // 4. Màn hình Chi tiết (CÓ THAM SỐ)
+        // 4. Màn hình Chi tiết
         composable<NavRoute.DocumentDetail> { backStackEntry ->
             val route = backStackEntry.toRoute<NavRoute.DocumentDetail>()
 
@@ -106,7 +102,7 @@ fun AppNavigation(
             )
         }
 
-        // 5. Màn hình Xem tất cả (CÓ THAM SỐ)
+        // 5. Màn hình Xem tất cả
         composable<NavRoute.ViewAll> { backStackEntry ->
             val route = backStackEntry.toRoute<NavRoute.ViewAll>()
 
@@ -134,5 +130,7 @@ fun AppNavigation(
                 onSubmitClick = { navController.popBackStack() }
             )
         }
+
+        // 8. Màn hình Cá nhân (MỚI THÊM)
     }
 }

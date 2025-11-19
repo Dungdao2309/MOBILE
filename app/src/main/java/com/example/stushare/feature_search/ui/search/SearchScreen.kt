@@ -1,13 +1,20 @@
-// File: SearchScreen.kt (Đã cải tiến - Tách biệt trách nhiệm)
-
 package com.example.stushare.features.feature_search.ui.search
 
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,42 +22,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.stushare.features.feature_search.ui.search.SearchViewModel
-// ⭐️ XÓA: import com.example.stushare.features.feature_search.ui.search.SearchUiState
-
-// Import các component và Theme
 import com.example.stushare.features.feature_search.ui.components.SearchTagChip
 import com.example.stushare.ui.theme.LightGreen
 import com.example.stushare.ui.theme.PrimaryGreen
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
     onBackClick: () -> Unit,
     onSearchSubmit: (String) -> Unit,
-    // ⭐️ THAY ĐỔI: ViewModel giờ được Hilt tự động cung cấp
     viewModel: SearchViewModel = hiltViewModel()
 ) {
+    // Lấy state từ ViewModel
     val currentQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    // ⭐️ BƯỚC 1: LẤY STATE MỚI TỪ VIEWMODEL ⭐️
     val recentSearches by viewModel.recentSearchesState.collectAsStateWithLifecycle()
 
-    // ⭐️ BƯỚC 2: XÓA DANH SÁCH HARDCODE ⭐️
-    // val recentSearches = remember { ... } // <-- ĐÃ XÓA
-
+    val keyboardController = LocalSoftwareKeyboardController.current
     val suggestions = remember { listOf("Pháp luật đại cương", "Công nghệ phần mềm", "Khoa CNTT", "#dethi") }
 
-    // ⭐️ THAY ĐỔI: Lắng nghe sự kiện điều hướng (navigationEvent)
-    LaunchedEffect(Unit) { // Chỉ chạy một lần
+    // Lắng nghe sự kiện điều hướng khi nhấn Enter hoặc chọn từ lịch sử
+    LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { query ->
-            // 1. Điều hướng sang màn hình kết quả
             onSearchSubmit(query)
-            // 2. (Không cần reset state nữa)
         }
     }
 
@@ -58,62 +58,113 @@ fun SearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .systemBarsPadding()
+            .statusBarsPadding()
     ) {
-        // PHẦN 1: HEADER MÀU XANH
+        // 1. Header chứa thanh tìm kiếm
         SearchHeader(
-            onBackClick = onBackClick,
             query = currentQuery,
-            onQueryChange = { viewModel.onQueryChanged(it) },
-            onSearchClick = {
+            onQueryChange = viewModel::onQueryChanged,
+            onBackClick = onBackClick,
+            onClearClick = { viewModel.onQueryChanged("") }, // Xóa text
+            onSearch = {
+                keyboardController?.hide()
                 if (currentQuery.isNotBlank()) {
-                    // ⭐️ THAY ĐỔI: Gọi hàm "trigger" mới
                     viewModel.onSearchTriggered(currentQuery)
                 }
             }
         )
 
-        // PHẦN 2: NỘI DUNG MÀU TRẮNG
+        // 2. Nội dung chính (Lịch sử & Gợi ý)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .background(Color.White)
-                .padding(16.dp)
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(20.dp) // Padding thoáng đãng
+            ) {
+                // Section: Lịch sử tìm kiếm
+                if (recentSearches.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Tìm kiếm gần đây",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                            TextButton(onClick = { viewModel.clearRecentSearches() }) {
+                                Text("Xóa tất cả", color = Color.Red, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
 
-            // ⭐️ THAY ĐỔI: Đã xóa toàn bộ khối `when (uiState)`
-            // Màn hình này giờ chỉ hiển thị Lịch sử và Gợi ý
+                    // Danh sách lịch sử (Vertical List)
+                    items(recentSearches) { search ->
+                        RecentSearchItem(
+                            text = search,
+                            onClick = {
+                                viewModel.onQueryChanged(search)
+                                viewModel.onSearchTriggered(search)
+                            }
+                        )
+                    }
 
-            SearchHistorySection(
-                searches = recentSearches, // <-- Dùng state từ ViewModel
-                onChipClick = { tag -> viewModel.onQueryChanged(tag) },
-                // ⭐️ BƯỚC 3: CẬP NHẬT NÚT XÓA ⭐️
-                onClearClick = { viewModel.clearRecentSearches() }
-            )
+                    item {
+                        Divider(
+                            modifier = Modifier.padding(vertical = 24.dp),
+                            color = Color.LightGray.copy(alpha = 0.3f)
+                        )
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                // Section: Gợi ý (Chips)
+                item {
+                    Text(
+                        text = "Gợi ý cho bạn",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
 
-            SuggestionSection(
-                suggestions = suggestions,
-                onChipClick = { tag -> viewModel.onQueryChanged(tag) }
-            )
+                    // FlowRow tự động xuống dòng khi hết chỗ
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        suggestions.forEach { suggestion ->
+                            SearchTagChip(
+                                text = suggestion,
+                                onClick = {
+                                    viewModel.onQueryChanged(suggestion)
+                                    viewModel.onSearchTriggered(suggestion)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-// --- Các Component con của SearchScreen (Giữ nguyên) ---
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchHeader(
-    onBackClick: () -> Unit,
     query: String,
     onQueryChange: (String) -> Unit,
-    onSearchClick: () -> Unit
+    onBackClick: () -> Unit,
+    onClearClick: () -> Unit,
+    onSearch: () -> Unit
 ) {
-    // (Hàm này giữ nguyên, không cần thay đổi gì)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -121,6 +172,7 @@ private fun SearchHeader(
             .background(PrimaryGreen)
             .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
     ) {
+        // Hàng tiêu đề
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBackClick) {
                 Icon(
@@ -130,7 +182,7 @@ private fun SearchHeader(
                 )
             }
             Text(
-                text = "Tìm Kiếm",
+                text = "Tìm kiếm",
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -140,83 +192,86 @@ private fun SearchHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Thanh tìm kiếm (Pill Shape)
         TextField(
             value = query,
             onValueChange = onQueryChange,
-            placeholder = { Text("Tìm kiếm tài liệu", color = Color.Gray) },
+            placeholder = {
+                Text("Nhập tên tài liệu, môn học...", color = Color.Gray, fontSize = 14.sp)
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
+                .height(50.dp)
+                .clip(CircleShape), // Bo tròn hoàn toàn (Pill shape)
+            shape = CircleShape,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = LightGreen,
-                unfocusedContainerColor = LightGreen,
+                focusedContainerColor = LightGreen,     // Nền nhạt khi focus
+                unfocusedContainerColor = LightGreen,   // Nền nhạt khi không focus
                 disabledContainerColor = LightGreen,
-                focusedIndicatorColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent, // Ẩn gạch chân
                 unfocusedIndicatorColor = Color.Transparent,
                 cursorColor = PrimaryGreen
             ),
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryGreen)
+            },
             trailingIcon = {
-                // ⭐️ LƯU Ý: onSearchClick đã được cập nhật ở Composable cha
-                IconButton(onClick = onSearchClick) {
-                    Icon(Icons.Default.Search, "Tìm kiếm", tint = Color.Gray)
+                // Chỉ hiện nút Xóa khi có text
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = onClearClick) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Xóa",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             },
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSearch() })
         )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SearchHistorySection(
-    searches: List<String>,
-    onChipClick: (String) -> Unit,
-    onClearClick: () -> Unit
+private fun RecentSearchItem(
+    text: String,
+    onClick: () -> Unit
 ) {
-    // (Hàm này giữ nguyên)
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Tìm kiếm gần đây", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onClearClick) {
-                Text("Xóa", color = Color.Red)
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            searches.forEach { search ->
-                SearchTagChip(text = search, onClick = { onChipClick(search) })
-            }
-        }
-    }
-}
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp), // Tăng vùng chạm (Thumb Zone friendly)
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon đồng hồ biểu thị lịch sử
+        Icon(
+            imageVector = Icons.Default.History,
+            contentDescription = null,
+            tint = Color.LightGray,
+            modifier = Modifier.size(22.dp)
+        )
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SuggestionSection(
-    suggestions: List<String>,
-    onChipClick: (String) -> Unit
-) {
-    // (Hàm này giữ nguyên)
-    Column {
-        Text("Gợi ý cho bạn", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            suggestions.forEach { suggestion ->
-                SearchTagChip(text = suggestion, onClick = { onChipClick(suggestion) })
-            }
-        }
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF333333),
+            modifier = Modifier.weight(1f)
+        )
+
+        // Icon mũi tên chéo để gợi ý điền nhanh (Visual Cue)
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            tint = Color.LightGray,
+            modifier = Modifier
+                .size(18.dp)
+                .rotate(-45f)
+        )
     }
 }

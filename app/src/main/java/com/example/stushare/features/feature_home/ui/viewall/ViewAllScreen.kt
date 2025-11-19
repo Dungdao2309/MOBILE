@@ -5,27 +5,28 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.stushare.features.feature_home.ui.components.GridDocumentCard // <-- DÙNG CARD MỚI
-import com.example.stushare.ui.theme.LightGreen
+import com.example.stushare.core.data.models.Document
+import com.example.stushare.features.feature_home.ui.components.DocumentCard
 import com.example.stushare.ui.theme.PrimaryGreen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewAllScreen(
-    category: String, // Nhận category
+    category: String, // Nhận category id (ví dụ: "new_uploads")
     onBackClick: () -> Unit,
     onDocumentClick: (String) -> Unit,
     viewModel: ViewAllViewModel = hiltViewModel()
@@ -39,68 +40,80 @@ fun ViewAllScreen(
         else -> "Xem tất cả"
     }
 
+    // Load dữ liệu khi màn hình khởi tạo
     LaunchedEffect(key1 = category) {
         viewModel.loadCategory(category)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .systemBarsPadding()
-    ) {
-        // PHẦN 1: HEADER
-        ViewAllHeader(title = screenTitle, onBackClick = onBackClick)
-
-        // PHẦN 2: NỘI DUNG
+    Scaffold(
+        // 1. Header: Clean & Simple (Đồng bộ với Detail Screen)
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = screenTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Quay về"
+                        )
+                    }
+                },
+                actions = {
+                    // Nút Lọc (Visual Cue): Gợi ý tính năng lọc/sắp xếp
+                    IconButton(onClick = { /* TODO: Mở BottomSheet lọc */ }) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Lọc",
+                            tint = Color.Gray
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color.Black,
+                    navigationIconContentColor = Color.Black
+                )
+            )
+        }
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color.White)
-                .padding(16.dp)
+                .background(Color.White) // Nền trắng sạch sẽ
+                .padding(paddingValues)
         ) {
             when (val state = uiState) {
                 is ViewAllUiState.Loading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                is ViewAllUiState.Success -> {
-                    Column {
-                        // Hàng nút "Sắp xếp" và "Bộ lọc"
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Button(onClick = { /*TODO*/ }, modifier = Modifier.weight(1f)) {
-                                Text("Sắp xếp: Mới nhất")
-                            }
-                            Button(onClick = { /*TODO*/ }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = LightGreen, contentColor = PrimaryGreen)) {
-                                Text("Bộ lọc")
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Lưới kết quả (giống Figma)
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2), // 2 cột
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.documents) { document ->
-                                // DÙNG CARD MỚI
-                                GridDocumentCard(
-                                    document = document,
-                                    onClick = { onDocumentClick(document.id.toString()) }                                )
-                            }
-                        }
+                        CircularProgressIndicator(color = PrimaryGreen)
                     }
                 }
                 is ViewAllUiState.Error -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Đã xảy ra lỗi: ${state.message}")
+                        Text(
+                            text = "Đã xảy ra lỗi: ${state.message}",
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+                is ViewAllUiState.Success -> {
+                    if (state.documents.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Không có tài liệu nào trong mục này", color = Color.Gray)
+                        }
+                    } else {
+                        // 2. Grid Layout: Tối ưu khoảng trắng (Whitespace)
+                        DocumentGridContent(
+                            documents = state.documents,
+                            onDocumentClick = onDocumentClick
+                        )
                     }
                 }
             }
@@ -109,29 +122,24 @@ fun ViewAllScreen(
 }
 
 @Composable
-private fun ViewAllHeader(title: String, onBackClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(PrimaryGreen)
-            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
-            .statusBarsPadding()
+fun DocumentGridContent(
+    documents: List<Document>,
+    onDocumentClick: (String) -> Unit
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2), // 2 Cột
+        contentPadding = PaddingValues(16.dp), // Padding bên ngoài (Thoáng)
+        horizontalArrangement = Arrangement.spacedBy(16.dp), // Khoảng cách cột (Rộng hơn cũ)
+        verticalArrangement = Arrangement.spacedBy(20.dp),   // Khoảng cách hàng
+        modifier = Modifier.fillMaxSize()
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay về",
-                    tint = Color.White
-                )
-            }
-            Text(
-                text = title, // Tiêu đề động
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
+        items(documents) { document ->
+            // 3. Component: Tái sử dụng DocumentCard đã nâng cấp
+            // Card sẽ tự giãn chiều ngang (fillMaxWidth) theo cột của Grid
+            DocumentCard(
+                document = document,
+                onClick = { onDocumentClick(document.id.toString()) },
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }

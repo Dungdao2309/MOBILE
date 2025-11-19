@@ -3,7 +3,6 @@ package com.example.stushare.features.feature_home.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -15,11 +14,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-// import androidx.media3.exoplayer.offline.Download // <-- XÓA DÒNG IMPORT SAI NÀY
 import coil.compose.AsyncImage
 import com.example.stushare.core.data.models.Document
-
+import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,81 +28,81 @@ fun DocumentCard(
     Card(
         onClick = onClick,
         modifier = modifier
-            .width(150.dp)
-            .height(260.dp),
-        shape = RoundedCornerShape(12.dp),
+            .width(160.dp) // Tăng nhẹ chiều rộng để cân đối với padding mới
+            .wrapContentHeight(), // Chiều cao linh hoạt theo nội dung
+        shape = RoundedCornerShape(16.dp), // Bo góc lớn hơn (Modern UI)
         colors = CardDefaults.cardColors(
-            // CẢI TIẾN: Dùng màu từ Theme thay vì hardcode
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = Color.White // Nền trắng sạch sẽ
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Shadow nhẹ tạo độ nổi
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp)
+                .padding(12.dp) // Tăng padding (Whitespace) để tạo cảm giác thoáng đãng
         ) {
+            // 1. Ảnh bìa (Vuông vức & Bo góc)
             AsyncImage(
                 model = document.imageUrl,
                 contentDescription = document.title,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .aspectRatio(1f) // Tỷ lệ 1:1
+                    .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 2. Tiêu đề (Sử dụng Style mới: titleMedium)
             Text(
                 text = document.title,
-                // CẢI TIẾN: Dùng kiểu chữ từ Theme
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.heightIn(min = 34.dp) // Giữ chiều cao 2 dòng
+                modifier = Modifier.heightIn(min = 48.dp) // Cố định chiều cao 2 dòng để các thẻ thẳng hàng
             )
+
             Spacer(modifier = Modifier.height(4.dp))
+
+            // 3. Loại tài liệu (Màu xanh chủ đạo, bỏ chữ "Loại:" để đơn giản hóa)
             Text(
-                text = "Loại: ${document.type}",
-                // CẢI TIẾN: Dùng kiểu chữ và màu từ Theme
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = document.type,
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryGreen,
+                fontWeight = FontWeight.Medium
             )
-            Spacer(modifier = Modifier.weight(1f)) // Đẩy phần dưới xuống đáy
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 4. Footer (Rating & Lượt tải)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Rating
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        // SỬA LỖI: Dùng Icons.Filled.Download
-                        imageVector = Icons.Filled.Download,
-                        contentDescription = "Tải về",
-                        modifier = Modifier.size(16.dp),
-                        // CẢI TIẾN: Dùng màu từ Theme
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = document.downloads.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        // SỬA LỖI: Dùng Icons.Filled.Star
                         imageVector = Icons.Filled.Star,
                         contentDescription = "Rating",
                         modifier = Modifier.size(16.dp),
-                        tint = Color(0xFFFFC107) // Giữ màu vàng đặc trưng
+                        tint = Color(0xFFFFC107) // Màu vàng ngôi sao
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = document.rating.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "%.1f".format(document.rating),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
+
+                // Lượt tải (Dùng label nhỏ, màu xám nhạt)
+                Text(
+                    text = "${document.downloads} tải",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray
+                )
             }
         }
     }
