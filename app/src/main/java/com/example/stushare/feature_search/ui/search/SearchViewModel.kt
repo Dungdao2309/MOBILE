@@ -2,20 +2,16 @@ package com.example.stushare.features.feature_search.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-// ⭐️ BƯỚC 1: IMPORT SETTINGS REPOSITORY ⭐️
 import com.example.stushare.core.data.repository.SettingsRepository
 import com.example.stushare.core.data.repository.DocumentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.* // Đã bao gồm update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import com.example.stushare.feature_search.ui.search.SearchUiState
-
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: DocumentRepository,
-    // ⭐️ BƯỚC 2: INJECT SETTINGS REPOSITORY ⭐️
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -25,16 +21,16 @@ class SearchViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // ⭐️ BƯỚC 3: TẠO STATEFLOW ĐỂ ĐỌC DANH SÁCH TÌM KIẾM GẦN ĐÂY ⭐️
     val recentSearchesState: StateFlow<List<String>> = settingsRepository.recentSearches
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList() // Ban đầu là danh sách rỗng
+            initialValue = emptyList()
         )
 
     fun onQueryChanged(newQuery: String) {
-        _searchQuery.value = newQuery
+        // ⭐️ CẬP NHẬT AN TOÀN
+        _searchQuery.update { newQuery }
     }
 
     init {
@@ -48,14 +44,12 @@ class SearchViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    // ⭐️ BƯỚC 4: (TÙY CHỌN) THÊM HÀM XÓA LỊCH SỬ ⭐️
     fun clearRecentSearches() {
         viewModelScope.launch {
             settingsRepository.clearRecentSearches()
         }
     }
 
-    // (Hàm onSearchTriggered giữ nguyên)
     fun onSearchTriggered(query: String) {
         viewModelScope.launch {
             try {

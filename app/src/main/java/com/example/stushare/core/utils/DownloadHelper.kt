@@ -1,33 +1,40 @@
 package com.example.stushare.core.utils
 
-import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
-import android.os.Environment
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.example.stushare.core.workers.DownloadWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 class DownloadHelper @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    fun downloadFile(url: String, title: String): Long {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    fun downloadFile(url: String, title: String) {
+        // 1. Tạo dữ liệu đầu vào để gửi cho Worker
+        val inputData = workDataOf(
+            DownloadWorker.KEY_FILE_URL to url,
+            DownloadWorker.KEY_FILE_NAME to title
+        )
 
-        val uri = Uri.parse(url)
+        // 2. ⭐️ CẢI TIẾN QUAN TRỌNG: Thêm Ràng buộc (Constraints)
+        // Theo sách Head First Android (Phụ lục): Chỉ chạy khi có mạng (CONNECTED).
+        // Bạn có thể đổi thành UNMETERED nếu chỉ muốn tải qua WiFi.
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED) // Yêu cầu phải có mạng
+            .setRequiresBatteryNotLow(true) // Không tải nếu pin yếu
+            .build()
 
-        val request = DownloadManager.Request(uri)
-            // 1. Tùy chọn: Đặt tiêu đề cho thông báo
-            .setTitle("Tải về: $title")
-            .setDescription("Đang tải tài liệu...")
-            // 2. Cho phép hiển thị trên thanh thông báo
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            // 3. Đặt đường dẫn lưu file (ví dụ: thư mục Downloads)
-            .setDestinationInExternalPublicDir(
-                Environment.DIRECTORY_DOWNLOADS,
-                title + "_" + System.currentTimeMillis() + ".pdf" // Đặt tên file
-            )
+        // 3. Tạo yêu cầu công việc (WorkRequest)
+        val downloadWorkRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
+            .setConstraints(constraints)
+            .setInputData(inputData)
+            .build()
 
-        // 4. Bắt đầu tải và trả về ID
-        return downloadManager.enqueue(request)
+        // 4. Gửi yêu cầu cho WorkManager
+        WorkManager.getInstance(context).enqueue(downloadWorkRequest)
     }
 }

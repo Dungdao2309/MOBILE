@@ -1,31 +1,30 @@
 package com.example.stushare.core.navigation
 
-// File: core/navigation/NavRoute.kt
-sealed class NavRoute(val route: String) {
+import kotlinx.serialization.Serializable
 
-    // 1. Các Routes không có tham số
-    data object Home : NavRoute("home_route")
-    data object Search : NavRoute("search_route")
-    data object RequestList : NavRoute("request_list_route")
-    data object CreateRequest : NavRoute("create_request_route")
+sealed interface NavRoute {
 
-    // 2. Các Routes CÓ tham số
+    // 1. Các màn hình không có tham số
+    @Serializable
+    data object Home : NavRoute
 
-    // Route Chi tiết Tài liệu (documentId)
-    data object DocumentDetail : NavRoute("document_detail_route/{documentId}") {
-        // Hàm này được dùng để tạo route thực tế khi điều hướng
-        fun createRoute(documentId: String) = "document_detail_route/$documentId"
-    }
+    @Serializable
+    data object Search : NavRoute
 
-    // Route Xem Tất cả (category)
-    data object ViewAll : NavRoute("view_all_route/{category}") {
-        // Hàm này được dùng để tạo route thực tế khi điều hướng
-        fun createRoute(category: String) = "view_all_route/$category"
-    }
+    @Serializable
+    data object RequestList : NavRoute
 
-    // Route Kết quả Tìm kiếm (query)
-    data object SearchResult : NavRoute("search_result_route/{query}") {
-        // Hàm này được dùng để tạo route thực tế khi điều hướng
-        fun createRoute(query: String) = "search_result_route/$query"
-    }
+    @Serializable
+    data object CreateRequest : NavRoute
+
+    // 2. Các màn hình CÓ tham số (Dùng biến trực tiếp!)
+
+    @Serializable
+    data class DocumentDetail(val documentId: String) : NavRoute
+
+    @Serializable
+    data class ViewAll(val category: String) : NavRoute
+
+    @Serializable
+    data class SearchResult(val query: String) : NavRoute
 }

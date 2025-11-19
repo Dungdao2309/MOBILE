@@ -1,29 +1,18 @@
-// File: AppNavigation.kt (Đã cải tiến - Tách biệt trách nhiệm)
-
 package com.example.stushare
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.runtime.Composable
-// ⭐️ XÓA: import androidx.compose.runtime.remember (Không cần nữa)
-import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
-// ⭐️ XÓA: import androidx.navigation.navigation (Không cần graph lồng nhau nữa)
-
-// Imports cho Animation
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.toRoute // <-- IMPORT QUAN TRỌNG
 
-// Imports Màn hình
-import com.example.stushare.feature_search.ui.search.SearchResultScreen
 import com.example.stushare.core.navigation.NavRoute
 import com.example.stushare.features.feature_document_detail.ui.detail.DocumentDetailScreen
 import com.example.stushare.features.feature_home.ui.home.HomeScreen
@@ -31,12 +20,7 @@ import com.example.stushare.features.feature_home.ui.viewall.ViewAllScreen
 import com.example.stushare.features.feature_request.ui.create.CreateRequestScreen
 import com.example.stushare.features.feature_request.ui.list.RequestListScreen
 import com.example.stushare.features.feature_search.ui.search.SearchScreen
-
-// ⭐️ XÓA: Imports cho Shared ViewModel (Không cần nữa)
-// import androidx.hilt.navigation.compose.hiltViewModel
-// import androidx.navigation.NavGraphBuilder
-// import com.example.stushare.features.feature_search.ui.search.SearchViewModel
-
+import com.example.stushare.feature_search.ui.search.SearchResultScreen
 
 @Composable
 fun AppNavigation(
@@ -45,15 +29,15 @@ fun AppNavigation(
     windowSizeClass: WindowSizeClass
 ) {
     val duration = 300
+    // Các biến Animation giữ nguyên
     val slideIn = slideInHorizontally(animationSpec = tween(duration), initialOffsetX = { it }) + fadeIn(animationSpec = tween(duration))
     val slideOut = slideOutHorizontally(animationSpec = tween(duration), targetOffsetX = { -it }) + fadeOut(animationSpec = tween(duration))
     val popSlideIn = slideInHorizontally(animationSpec = tween(duration), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(duration))
     val popSlideOut = slideOutHorizontally(animationSpec = tween(duration), targetOffsetX = { it }) + fadeOut(animationSpec = tween(duration))
 
-
     NavHost(
         navController = navController,
-        startDestination = NavRoute.Home.route,
+        startDestination = NavRoute.Home, // <-- Dùng Object, không dùng String
         modifier = modifier,
         enterTransition = { fadeIn(animationSpec = tween(duration)) },
         exitTransition = { fadeOut(animationSpec = tween(duration)) },
@@ -61,120 +45,94 @@ fun AppNavigation(
         popExitTransition = { fadeOut(animationSpec = tween(duration)) }
     ) {
 
-        // Luồng 1: Yêu cầu (Giữ nguyên)
-        composable(
-            route = NavRoute.RequestList.route,
-            // ... (animations giữ nguyên)
-        ) {
-            RequestListScreen(
-                onBackClick = { navController.popBackStack() },
-                onCreateRequestClick = {
-                    navController.navigate(NavRoute.CreateRequest.route)
-                }
-            )
-        }
-
-        // Luồng 2: Trang chủ (Cập nhật onSearchClick)
-        composable(route = NavRoute.Home.route) {
+        // 1. Màn hình Home
+        composable<NavRoute.Home> {
             HomeScreen(
                 windowSizeClass = windowSizeClass,
-                onSearchClick = {
-                    // ⭐️ THAY ĐỔI: Điều hướng đến MÀN HÌNH tìm kiếm
-                    navController.navigate(NavRoute.Search.route)
-                },
+                onSearchClick = { navController.navigate(NavRoute.Search) },
                 onViewAllClick = { category ->
-                    navController.navigate(NavRoute.ViewAll.createRoute(category))
+                    navController.navigate(NavRoute.ViewAll(category))
                 },
                 onDocumentClick = { documentId ->
-                    navController.navigate(NavRoute.DocumentDetail.createRoute(documentId.toString()))
+                    // Truyền object DocumentDetail chứa id
+                    navController.navigate(NavRoute.DocumentDetail(documentId))
                 },
-                onCreateRequestClick = {
-                    navController.navigate(NavRoute.CreateRequest.route)
-                }
+                onCreateRequestClick = { navController.navigate(NavRoute.CreateRequest) }
             )
         }
 
-        // ⭐️ XÓA BỎ HOÀN TOÀN: searchNavGraph(...)
-
-        // ⭐️ THÊM MỚI: Luồng 3: Tìm kiếm (Giờ là màn hình độc lập)
-        composable(
-            route = NavRoute.Search.route,
+        // 2. Màn hình Search
+        composable<NavRoute.Search>(
             enterTransition = { slideIn },
             exitTransition = { slideOut },
             popEnterTransition = { popSlideIn },
             popExitTransition = { popSlideOut }
         ) {
-            // SearchScreen (đã cập nhật) sẽ tự động lấy SearchViewModel
             SearchScreen(
                 onBackClick = { navController.popBackStack() },
                 onSearchSubmit = { query ->
-                    // Điều hướng đến màn hình kết quả với từ khóa
-                    navController.navigate(NavRoute.SearchResult.createRoute(query))
+                    navController.navigate(NavRoute.SearchResult(query))
                 }
             )
         }
 
-        // ⭐️ THÊM MỚI: Luồng 4: Kết quả Tìm kiếm (Giờ là màn hình độc lập)
-        composable(
-            route = NavRoute.SearchResult.route, // Giả sử route này là "search_result/{query}"
-            arguments = listOf(navArgument("query") { type = NavType.StringType }),
+        // 3. Màn hình Kết quả Tìm kiếm (CÓ THAM SỐ)
+        composable<NavRoute.SearchResult>(
             enterTransition = { slideIn },
             exitTransition = { slideOut },
             popEnterTransition = { popSlideIn },
             popExitTransition = { popSlideOut }
-        ) {
-            // SearchResultScreen (đã cập nhật) sẽ tự động
-            // lấy SearchResultViewModel (mới) bằng Hilt
+        ) { backStackEntry ->
+            // Lấy tham số an toàn bằng toRoute()
+            val route = backStackEntry.toRoute<NavRoute.SearchResult>()
+
+            // SearchResultScreen có thể cần sửa để nhận query trực tiếp nếu ViewModel chưa hỗ trợ
+            // Nhưng hiện tại ViewModel đang lấy từ SavedStateHandle, ta cứ để vậy
             SearchResultScreen(
                 onBackClick = { navController.popBackStack() },
                 onDocumentClick = { documentId ->
-                    navController.navigate(NavRoute.DocumentDetail.createRoute(documentId.toString()))
+                    navController.navigate(NavRoute.DocumentDetail(documentId.toString()))
                 }
             )
         }
 
+        // 4. Màn hình Chi tiết (CÓ THAM SỐ)
+        composable<NavRoute.DocumentDetail> { backStackEntry ->
+            val route = backStackEntry.toRoute<NavRoute.DocumentDetail>()
 
-        // Luồng 5: Chi tiết Tài liệu (Giữ nguyên)
-        composable(
-            route = NavRoute.DocumentDetail.route,
-            // ... (code giữ nguyên)
-        ) { backStackEntry ->
-            val documentId = backStackEntry.arguments?.getString("documentId") ?: ""
             DocumentDetailScreen(
-                documentId = documentId,
+                documentId = route.documentId,
                 onBackClick = { navController.popBackStack() }
             )
         }
 
-        // Luồng 6: Xem tất cả (Giữ nguyên)
-        composable(
-            route = NavRoute.ViewAll.route,
-            // ... (code giữ nguyên)
-        ) { backStackEntry ->
-            val category = backStackEntry.arguments?.getString("category") ?: ""
+        // 5. Màn hình Xem tất cả (CÓ THAM SỐ)
+        composable<NavRoute.ViewAll> { backStackEntry ->
+            val route = backStackEntry.toRoute<NavRoute.ViewAll>()
+
             ViewAllScreen(
-                category = category,
+                category = route.category,
                 onBackClick = { navController.popBackStack() },
                 onDocumentClick = { documentId ->
-                    navController.navigate(NavRoute.DocumentDetail.createRoute(documentId.toString()))
+                    navController.navigate(NavRoute.DocumentDetail(documentId))
                 }
             )
         }
 
-        // Luồng 7: Tạo Yêu cầu (Giữ nguyên)
-        composable(
-            route = NavRoute.CreateRequest.route,
-            // ... (code giữ nguyên)
-        ) {
+        // 6. Màn hình Danh sách Yêu cầu
+        composable<NavRoute.RequestList> {
+            RequestListScreen(
+                onBackClick = { navController.popBackStack() },
+                onCreateRequestClick = { navController.navigate(NavRoute.CreateRequest) }
+            )
+        }
+
+        // 7. Màn hình Tạo Yêu cầu
+        composable<NavRoute.CreateRequest> {
             CreateRequestScreen(
                 onBackClick = { navController.popBackStack() },
-                onSubmitClick = {
-                    navController.popBackStack()
-                }
+                onSubmitClick = { navController.popBackStack() }
             )
         }
     }
 }
-
-// ⭐️ XÓA BỎ HOÀN TOÀN: Hàm "private fun NavGraphBuilder.searchNavGraph(...)"
-// (Toàn bộ hàm này đã bị xóa)
