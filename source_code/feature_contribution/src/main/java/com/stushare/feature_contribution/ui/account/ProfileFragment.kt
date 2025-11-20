@@ -74,7 +74,10 @@ class ProfileFragment : Fragment() {
         })
 
         view.findViewById<ImageButton>(R.id.btn_settings)?.setOnClickListener {
-            Toast.makeText(requireContext(), "Mở cài đặt", Toast.LENGTH_SHORT).show()
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.main_nav_host, SettingsFragment())
+                .addToBackStack(null)
+                .commit()
         }
 
         observeViewModel(view)
