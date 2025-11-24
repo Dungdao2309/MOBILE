@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.ListAlt
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -86,7 +88,13 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
                 selectedIcon = Icons.Filled.ListAlt,
                 unselectedIcon = Icons.Outlined.ListAlt,
                 route = NavRoute.RequestList
-            )
+            ),
+                    BottomNavItem(
+                    title = "Cá nhân",
+            selectedIcon = Icons.Filled.Person, // Cần import Icons.Filled.Person
+            unselectedIcon = Icons.Outlined.Person, // Cần import Icons.Outlined.Person
+            route = NavRoute.Profile
+        )
         )
     }
 

@@ -4,10 +4,37 @@ import kotlinx.serialization.Serializable
 
 sealed interface NavRoute {
 
-    // ==========================================
-    // 1. Các màn hình chính (Bottom Navigation)
-    // ==========================================
+    // ==============================
+    // 1. NHÓM AUTH (MỚI THÊM)
+    // ==============================
+    @Serializable
+    data object Intro : NavRoute          // Màn hình Chào
 
+    @Serializable
+    data object Onboarding : NavRoute     // Màn hình Giới thiệu
+
+    @Serializable
+    data object Login : NavRoute          // Đăng nhập
+
+    @Serializable
+    data object Register : NavRoute       // Đăng ký
+
+    @Serializable
+    data object ForgotPassword : NavRoute // Quên mật khẩu
+
+    @Serializable
+    data object LoginSMS : NavRoute       // Đăng nhập SĐT
+
+    @Serializable
+    data class VerifyOTP(val verificationId: String) : NavRoute // Xác thực OTP
+
+    @Serializable
+    data object Profile : NavRoute        // Màn hình Cá nhân
+
+
+    // ==============================
+    // 2. NHÓM MAIN APP (CŨ)
+    // ==============================
     @Serializable
     data object Home : NavRoute
 
@@ -18,18 +45,7 @@ sealed interface NavRoute {
     data object RequestList : NavRoute
 
     @Serializable
-    data object Profile : NavRoute // <-- Đã thêm màn hình Cá nhân
-
-    // ==========================================
-    // 2. Các màn hình chức năng (Không tham số)
-    // ==========================================
-
-    @Serializable
     data object CreateRequest : NavRoute
-
-    // ==========================================
-    // 3. Các màn hình chi tiết (Có tham số)
-    // ==========================================
 
     @Serializable
     data class DocumentDetail(val documentId: String) : NavRoute
