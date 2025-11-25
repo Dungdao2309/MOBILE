@@ -1,6 +1,8 @@
 package com.stushare.feature_contribution.navigation
 
 import com.stushare.feature_contribution.ui.account.SwitchAccountScreen
+import com.stushare.feature_contribution.ui.account.TermsOfUseScreen
+import com.stushare.feature_contribution.ui.account.PrivacyPolicyScreen
 import com.stushare.feature_contribution.ui.account.ReportViolationScreen
 import com.stushare.feature_contribution.ui.account.ContactSupportScreen
 import com.stushare.feature_contribution.ui.account.AboutAppScreen
@@ -48,6 +50,8 @@ sealed class Screen(val route: String) {
     object ContactSupport : Screen("contact_support")
     object ReportViolation : Screen("report_violation")
     object SwitchAccount : Screen("switch_account")
+    object TermsOfUse : Screen("terms_of_use")
+    object PrivacyPolicy : Screen("privacy_policy")
 }
 
 @Composable
@@ -142,9 +146,12 @@ fun AppNavigationGraph(
 
         // 11. Edit Phone
         composable(Screen.EditPhone.route) {
+            val title = androidx.compose.ui.res.stringResource(com.stushare.feature_contribution.R.string.title_edit_phone)
+            val label = androidx.compose.ui.res.stringResource(com.stushare.feature_contribution.R.string.label_edit_phone)
+            
             EditAttributeScreen(
-                title = "Cập nhật SĐT",
-                label = "Số điện thoại mới",
+                title = title,
+                label = label,
                 initialValue = "0123456789",
                 onBackClick = { navController.popBackStack() }
             )
@@ -152,9 +159,12 @@ fun AppNavigationGraph(
 
         // 12. Edit Email
         composable(Screen.EditEmail.route) {
+            val title = androidx.compose.ui.res.stringResource(com.stushare.feature_contribution.R.string.title_edit_email)
+            val label = androidx.compose.ui.res.stringResource(com.stushare.feature_contribution.R.string.label_edit_email)
+
             EditAttributeScreen(
-                title = "Cập nhật Email",
-                label = "Địa chỉ Email",
+                title = title,
+                label = label,
                 initialValue = "dungdao@test.com",
                 onBackClick = { navController.popBackStack() }
             )
@@ -175,6 +185,20 @@ fun AppNavigationGraph(
 
     composable(Screen.AboutApp.route) {
         AboutAppScreen(
+            onBackClick = { navController.popBackStack() },
+            onTermsClick = { navController.navigate(Screen.TermsOfUse.route) },
+            onPrivacyClick = { navController.navigate(Screen.PrivacyPolicy.route) } 
+        )
+    }
+
+    composable(Screen.TermsOfUse.route) {
+        TermsOfUseScreen(
+            onBackClick = { navController.popBackStack() }
+        )
+    }
+
+    composable(Screen.PrivacyPolicy.route) {
+        PrivacyPolicyScreen(
             onBackClick = { navController.popBackStack() }
         )
     }
