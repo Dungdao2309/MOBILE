@@ -22,16 +22,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
-import com.example.stushare.R  // Quan trọng: Để lấy ảnh intro1, intro2...
-import com.example.stushare.core.navigation.NavRoute // Import hệ thống điều hướng mới
+import com.example.stushare.R
+import com.example.stushare.core.navigation.NavRoute
 
-// Dữ liệu cho từng trang slide
 data class DuLieuGioiThieu(val tieuDe: String, val moTa: String, val hinhAnh: Int)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ManHinhGioiThieu(boDieuHuong: NavController) {
-    // Đảm bảo bạn đã copy ảnh intro1, intro2, intro3 vào thư mục res/drawable
     val danhSachTrang = listOf(
         DuLieuGioiThieu(
             "Tìm kiếm thông minh",
@@ -53,10 +51,9 @@ fun ManHinhGioiThieu(boDieuHuong: NavController) {
     val trangThaiPager = rememberPagerState(pageCount = { danhSachTrang.size })
     val phamViCoroutine = rememberCoroutineScope()
 
-    // Hàm chuyển sang màn hình Đăng nhập
-    fun denManHinhDangNhap() {
-        boDieuHuong.navigate(NavRoute.Login) {
-            // Xóa màn hình Giới thiệu khỏi lịch sử để back không quay lại đây nữa
+    // HÀM MỚI: Chuyển sang Trang chủ
+    fun denManHinhChinh() {
+        boDieuHuong.navigate(NavRoute.Home) {
             popUpTo(NavRoute.Onboarding) { inclusive = true }
             popUpTo(NavRoute.Intro) { inclusive = true }
         }
@@ -69,7 +66,6 @@ fun ManHinhGioiThieu(boDieuHuong: NavController) {
                 .padding(top = 100.dp, bottom = 50.dp, start = 16.dp, end = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Slider hình ảnh
             HorizontalPager(
                 state = trangThaiPager,
                 modifier = Modifier.weight(1f)
@@ -77,7 +73,6 @@ fun ManHinhGioiThieu(boDieuHuong: NavController) {
                 NoiDungTrang(danhSachTrang[viTri])
             }
 
-            // 2. Dấu chấm chỉ dẫn (Indicator)
             Row(
                 Modifier
                     .height(30.dp)
@@ -85,7 +80,6 @@ fun ManHinhGioiThieu(boDieuHuong: NavController) {
                 horizontalArrangement = Arrangement.Center
             ) {
                 repeat(danhSachTrang.size) { iteration ->
-                    // MauXanhSong được lấy từ file NenHinhSong.kt (cùng package nên không cần import)
                     val mauSac = if (trangThaiPager.currentPage == iteration) MauXanhSong else Color.LightGray
                     Box(
                         modifier = Modifier
@@ -99,17 +93,14 @@ fun ManHinhGioiThieu(boDieuHuong: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. Nút Tiếp tục / Bắt đầu
             Button(
                 onClick = {
                     if (trangThaiPager.currentPage < danhSachTrang.size - 1) {
-                        // Nếu chưa đến trang cuối -> Lướt tiếp
                         phamViCoroutine.launch {
                             trangThaiPager.animateScrollToPage(trangThaiPager.currentPage + 1)
                         }
                     } else {
-                        // Nếu là trang cuối -> Sang Đăng nhập
-                        denManHinhDangNhap()
+                        denManHinhChinh() // Gọi hàm vào trang chủ
                     }
                 },
                 modifier = Modifier
@@ -125,8 +116,7 @@ fun ManHinhGioiThieu(boDieuHuong: NavController) {
                 )
             }
 
-            // 4. Nút Bỏ qua
-            TextButton(onClick = { denManHinhDangNhap() }) {
+            TextButton(onClick = { denManHinhChinh() }) {
                 Text("Bỏ qua", color = Color.Gray)
             }
         }
@@ -143,7 +133,7 @@ fun NoiDungTrang(duLieu: DuLieuGioiThieu) {
         Image(
             painter = painterResource(id = duLieu.hinhAnh),
             contentDescription = null,
-            modifier = Modifier.size(280.dp) // Điều chỉnh kích thước ảnh cho phù hợp
+            modifier = Modifier.size(280.dp)
         )
         Spacer(modifier = Modifier.height(32.dp))
         Text(

@@ -10,12 +10,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 
-// Định nghĩa màu cho sóng ngay tại đây
+// Định nghĩa màu
 val MauXanhSong = Color(0xFF2ecc71)
 val MauXanhDam = Color(0xFF27ae60)
 
 @Composable
 fun NenHinhSong(
+    // ⭐️ CẢI TIẾN: Thêm tham số bật/tắt sóng dưới (Mặc định là true để hiện)
+    hienThiSongDuoi: Boolean = true,
     noiDung: @Composable () -> Unit
 ) {
     Box(
@@ -27,7 +29,7 @@ fun NenHinhSong(
             val chieuRong = size.width
             val chieuCao = size.height
 
-            // Sóng trên
+            // --- 1. VẼ SÓNG TRÊN (Luôn luôn vẽ) ---
             val duongDanTren = Path().apply {
                 moveTo(0f, 0f)
                 lineTo(chieuRong, 0f)
@@ -49,24 +51,30 @@ fun NenHinhSong(
                 )
             )
 
-            // Sóng dưới
-            val duongDanDuoi = Path().apply {
-                moveTo(0f, chieuCao)
-                lineTo(chieuRong, chieuCao)
-                val chieuCaoSong = chieuCao * 0.9f
-                lineTo(chieuRong, chieuCaoSong)
-                quadraticBezierTo(
-                    chieuRong * 0.5f, chieuCao * 1f,
-                    0f, chieuCaoSong
-                )
-                close()
-            }
+            // --- 2. VẼ SÓNG DƯỚI (Vẽ có điều kiện) ---
+            // Chỉ vẽ khi hienThiSongDuoi = true.
+            // Giúp tránh xung đột (đè lên nhau) với thanh NavigationBar màu xanh ở màn hình chính.
+            if (hienThiSongDuoi) {
+                val duongDanDuoi = Path().apply {
+                    moveTo(0f, chieuCao)
+                    lineTo(chieuRong, chieuCao)
+                    val chieuCaoSong = chieuCao * 0.9f
+                    lineTo(chieuRong, chieuCaoSong)
+                    quadraticBezierTo(
+                        chieuRong * 0.5f, chieuCao * 1f,
+                        0f, chieuCaoSong
+                    )
+                    close()
+                }
 
-            drawPath(
-                path = duongDanDuoi,
-                color = MauXanhSong
-            )
+                drawPath(
+                    path = duongDanDuoi,
+                    color = MauXanhSong
+                )
+            }
         }
+
+        // Hiển thị nội dung màn hình lên trên
         noiDung()
     }
 }

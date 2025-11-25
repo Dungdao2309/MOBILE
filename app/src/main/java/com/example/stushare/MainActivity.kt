@@ -4,7 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
@@ -22,8 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -33,7 +37,6 @@ import com.example.stushare.ui.theme.PrimaryGreen
 import com.example.stushare.ui.theme.StuShareTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-// Cấu hình Dagger Hilt cho Activity
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -42,9 +45,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            // Tính toán kích thước màn hình (để hỗ trợ responsive nếu cần)
             val windowSizeClass = calculateWindowSizeClass(this)
-
             StuShareTheme {
                 MainAppScreen(windowSizeClass = windowSizeClass)
             }
@@ -52,23 +53,23 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// 1. Cấu trúc dữ liệu cho một mục trên thanh điều hướng
+// 1. Cấu trúc dữ liệu cho mục BottomBar
 data class BottomNavItem(
     val title: String,
-    val selectedIcon: ImageVector,   // Icon khi được chọn (Đậm)
-    val unselectedIcon: ImageVector, // Icon khi không chọn (Viền)
-    val route: NavRoute              // Đường dẫn màn hình
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector,
+    val route: NavRoute
 )
 
 @Composable
 fun MainAppScreen(windowSizeClass: WindowSizeClass) {
     val navController = rememberNavController()
 
-    // Lấy màn hình hiện tại để biết nút nào đang active
+    // Theo dõi màn hình hiện tại để đổi màu icon
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // 2. Danh sách các màn hình trên BottomBar
+    // 2. Danh sách các Tab
     val bottomNavItems = remember {
         listOf(
             BottomNavItem(
@@ -89,16 +90,16 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
                 unselectedIcon = Icons.Outlined.ListAlt,
                 route = NavRoute.RequestList
             ),
-                    BottomNavItem(
-                    title = "Cá nhân",
-            selectedIcon = Icons.Filled.Person, // Cần import Icons.Filled.Person
-            unselectedIcon = Icons.Outlined.Person, // Cần import Icons.Outlined.Person
-            route = NavRoute.Profile
-        )
+            BottomNavItem(
+                title = "Cá nhân",
+                selectedIcon = Icons.Filled.Person,
+                unselectedIcon = Icons.Outlined.Person,
+                route = NavRoute.Profile
+            )
         )
     }
 
-    // 3. Logic kiểm tra: Chỉ hiện BottomBar nếu màn hình hiện tại nằm trong danh sách trên
+    // 3. Chỉ hiện BottomBar khi ở các màn hình chính
     val showBottomBar = bottomNavItems.any { item ->
         currentDestination?.hasRoute(item.route::class) == true
     }
@@ -107,30 +108,33 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
-                    containerColor = Color.White, // Nền trắng sạch sẽ
-                    contentColor = PrimaryGreen
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // --- CẢI TIẾN 1: Bo tròn 2 góc trên (30dp) ---
+                        .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)),
+
+                    // --- CẢI TIẾN 2: Đổi nền sang màu Xanh ---
+                    containerColor = PrimaryGreen,
+                    contentColor = Color.White, // Màu mặc định của nội dung là trắng
+                    tonalElevation = 8.dp
                 ) {
                     bottomNavItems.forEach { item ->
-                        // Kiểm tra nút này có đang được chọn không
+                        // Kiểm tra tab nào đang được chọn
                         val isSelected = currentDestination?.hasRoute(item.route::class) == true
 
                         NavigationBarItem(
                             selected = isSelected,
                             onClick = {
                                 navController.navigate(item.route) {
-                                    // Quay về màn hình chính (Home) để tránh chồng chất stack
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
-                                    // Tránh mở lại cùng một màn hình nhiều lần
                                     launchSingleTop = true
-                                    // Khôi phục trạng thái (vị trí cuộn...) khi quay lại
                                     restoreState = true
                                 }
                             },
                             icon = {
                                 Icon(
-                                    // Đổi icon dựa trên trạng thái chọn
                                     imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                                     contentDescription = item.title
                                 )
@@ -142,11 +146,18 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
+                                // --- CẢI TIẾN 3: Phối màu cho nền xanh ---
+
+                                // Khi ĐƯỢC CHỌN: Icon màu xanh (để nổi trên nền trắng), Chữ màu trắng
                                 selectedIconColor = PrimaryGreen,
-                                selectedTextColor = PrimaryGreen,
-                                indicatorColor = PrimaryGreen.copy(alpha = 0.1f), // Nền tròn mờ quanh icon khi chọn
-                                unselectedIconColor = Color.Gray,
-                                unselectedTextColor = Color.Gray
+                                selectedTextColor = Color.White,
+
+                                // Indicator (cái bầu dục bao quanh icon) chuyển thành màu Trắng
+                                indicatorColor = Color.White,
+
+                                // Khi CHƯA CHỌN: Icon và Chữ màu trắng mờ (0.6f) để chìm xuống nền xanh
+                                unselectedIconColor = Color.White.copy(alpha = 0.6f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.6f)
                             )
                         )
                     }
@@ -154,7 +165,6 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
             }
         }
     ) { innerPadding ->
-        // Truyền padding vào AppNavigation để nội dung không bị che bởi BottomBar
         AppNavigation(
             navController = navController,
             windowSizeClass = windowSizeClass,

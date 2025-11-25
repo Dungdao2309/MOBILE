@@ -11,10 +11,7 @@ import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.* // Import đủ các hàm runtime
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,16 +28,24 @@ import com.example.stushare.features.feature_document_detail.ui.detail.DetailUiS
 import com.example.stushare.features.feature_document_detail.ui.detail.DocumentDetailViewModel
 import com.example.stushare.ui.theme.PrimaryGreen
 import kotlinx.coroutines.flow.collectLatest
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentDetailScreen(
     documentId: String,
     onBackClick: () -> Unit,
+    onLoginRequired: () -> Unit, // Callback khi cần đăng nhập
     viewModel: DocumentDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Lấy trạng thái đăng nhập hiện tại
+    // Sử dụng remember để không phải gọi getInstance liên tục, nhưng cần cẩn thận nếu user logout/login mà không thoát màn hình
+    // Tuy nhiên với luồng navigation hiện tại (Login xong quay lại), màn hình sẽ được recompose nên vẫn ổn.
+    val currentUser = remember { FirebaseAuth.getInstance().currentUser }
+    val isLoggedIn = currentUser != null
 
     LaunchedEffect(key1 = documentId) {
         viewModel.getDocumentById(documentId)
@@ -53,7 +58,6 @@ fun DocumentDetailScreen(
     }
 
     Scaffold(
-        // 1. Header: Đơn giản, nền trắng để tập trung vào nội dung
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -74,16 +78,26 @@ fun DocumentDetailScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-
-        // 2. Thumb Zone: Nút hành động chính nằm dưới cùng, dễ bấm
         bottomBar = {
+            // Chỉ hiện BottomBar khi đã load xong dữ liệu
             if (uiState is DetailUiState.Success) {
                 val document = (uiState as DetailUiState.Success).document
+
                 BottomActionSection(
                     onDownloadClick = {
-                        viewModel.startDownload(document.imageUrl, document.title)
+                        if (isLoggedIn) {
+                            viewModel.startDownload(document.imageUrl, document.title)
+                        } else {
+                            onLoginRequired()
+                        }
                     },
-                    onCommentClick = { /* TODO: Mở bình luận */ }
+                    onCommentClick = {
+                        if (isLoggedIn) {
+                            // TODO: Mở tính năng bình luận
+                        } else {
+                            onLoginRequired()
+                        }
+                    }
                 )
             }
         }
@@ -92,7 +106,7 @@ fun DocumentDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(paddingValues)
+                .padding(paddingValues) // Scaffold tự tính toán khoảng trống cho BottomBar
         ) {
             when (val state = uiState) {
                 is DetailUiState.Loading -> {
@@ -119,9 +133,9 @@ fun DocumentDetailContent(document: Document) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp) // Tăng padding lên 20dp cho thoáng (Whitespace)
+            .padding(20.dp)
     ) {
-        // 1. Ảnh bìa lớn (Tiêu điểm thị giác)
+        // 1. Ảnh bìa
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -130,35 +144,36 @@ fun DocumentDetailContent(document: Document) {
                 model = document.imageUrl,
                 contentDescription = null,
                 modifier = Modifier
-                    .width(160.dp) // Kích thước ảnh bìa chuẩn
-                    .aspectRatio(0.7f) // Tỉ lệ ~3:4 (giống sách thật)
-                    .clip(RoundedCornerShape(16.dp)) // Bo góc mềm mại
-                    .background(Color.LightGray.copy(alpha = 0.2f)), // Placeholder nhẹ
+                    .width(160.dp)
+                    .aspectRatio(0.7f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.LightGray.copy(alpha = 0.2f)),
                 contentScale = ContentScale.Crop
             )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 2. Thông tin chính (Title & Author) - Visual Hierarchy
+        // 2. Tiêu đề
         Text(
             text = document.title,
-            style = MaterialTheme.typography.titleLarge, // Font to, đậm
+            style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Tác giả
         Text(
             text = "Tác giả: ${document.author}",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant // Màu nhạt hơn tiêu đề
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 3. Các chỉ số (Rating, Downloads) - Dùng Badge gọn gàng
+        // 3. Badge chỉ số
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -166,16 +181,16 @@ fun DocumentDetailContent(document: Document) {
             BadgeInfo(
                 icon = Icons.Filled.Star,
                 text = "%.1f".format(document.rating),
-                color = Color(0xFFFFC107) // Vàng
+                color = Color(0xFFFFC107)
             )
             BadgeInfo(
                 icon = Icons.Filled.Download,
                 text = "${document.downloads} lượt tải",
-                color = PrimaryGreen // Xanh chủ đạo
+                color = PrimaryGreen
             )
             BadgeInfo(
-                icon = Icons.Default.ChatBubbleOutline, // Icon phụ
-                text = "${document.downloads / 10} bình luận", // Giả lập số liệu
+                icon = Icons.Default.ChatBubbleOutline,
+                text = "${document.downloads / 10} bình luận", // Demo data
                 color = Color.Gray
             )
         }
@@ -184,7 +199,7 @@ fun DocumentDetailContent(document: Document) {
         Divider(color = Color.LightGray.copy(alpha = 0.2f))
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 4. Chi tiết mô tả (Simplicity - Chia nhỏ nội dung)
+        // 4. Nội dung chi tiết
         DetailSection(
             title = "Mô tả tài liệu",
             content = "Đây là tài liệu tham khảo chất lượng cao dành cho sinh viên, bao gồm các kiến thức từ cơ bản đến nâng cao. Tài liệu được biên soạn kỹ lưỡng, dễ hiểu và có nhiều ví dụ minh họa thực tế."
@@ -195,12 +210,11 @@ fun DocumentDetailContent(document: Document) {
             content = "• Mã môn học: ${document.courseCode}\n• Loại tài liệu: ${document.type}\n• Định dạng: PDF"
         )
 
-        // Khoảng trống để nội dung không bị che bởi BottomBar
-        Spacer(modifier = Modifier.height(80.dp))
+        // CẢI TIẾN: Giảm Spacer xuống vì Scaffold padding đã xử lý việc che nội dung
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-// Component hiển thị thông tin dạng Badge (Huy hiệu)
 @Composable
 fun BadgeInfo(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, color: Color) {
     Row(
@@ -225,7 +239,6 @@ fun BadgeInfo(icon: androidx.compose.ui.graphics.vector.ImageVector, text: Strin
     }
 }
 
-// Component hiển thị từng phần nội dung có tiêu đề
 @Composable
 fun DetailSection(title: String, content: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -240,29 +253,29 @@ fun DetailSection(title: String, content: String) {
             text = content,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 24.sp // Tăng line-height để dễ đọc
+            lineHeight = 24.sp
         )
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-// Component Bottom Bar chứa nút hành động chính
 @Composable
 fun BottomActionSection(onDownloadClick: () -> Unit, onCommentClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shadowElevation = 16.dp, // Tạo bóng đổ nổi lên
+        shadowElevation = 16.dp,
         color = Color.White,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Row(
             modifier = Modifier
-                .padding(20.dp) // Padding an toàn
-                .navigationBarsPadding(), // Tránh thanh điều hướng ảo
+                .padding(20.dp)
+                // Sử dụng navigationBarsPadding để tránh thanh điều hướng ảo của Android đè lên nút
+                .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Nút phụ: Bình luận
+            // Nút Bình luận
             OutlinedButton(
                 onClick = onCommentClick,
                 modifier = Modifier
@@ -274,12 +287,12 @@ fun BottomActionSection(onDownloadClick: () -> Unit, onCommentClick: () -> Unit)
                 Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, tint = Color.Gray)
             }
 
-            // Nút chính: Tải về (Nổi bật hơn)
+            // Nút Tải về
             Button(
                 onClick = onDownloadClick,
                 modifier = Modifier
-                    .weight(2f) // Chiếm 2/3 chiều rộng
-                    .height(54.dp), // Nút cao, dễ bấm
+                    .weight(2f)
+                    .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)

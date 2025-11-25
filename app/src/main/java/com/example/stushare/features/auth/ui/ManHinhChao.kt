@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import com.example.stushare.R
-import com.example.stushare.core.navigation.NavRoute // Import NavRoute
+import com.example.stushare.core.navigation.NavRoute
 import androidx.core.content.edit
 
 @Composable
@@ -29,16 +29,15 @@ fun ManHinhChao(boDieuHuong: NavController) {
         val laLanDau = sharedPreferences.getBoolean("lanDauMoApp", true)
 
         if (laLanDau) {
-            // LẦN ĐẦU: Lưu lại trạng thái và sang màn hình GIỚI THIỆU
+            // LẦN ĐẦU: Lưu trạng thái và sang màn hình GIỚI THIỆU
             sharedPreferences.edit { putBoolean("lanDauMoApp", false) }
 
-            // --- DẪN SANG NAVROUTE.ONBOARDING ---
             boDieuHuong.navigate(NavRoute.Onboarding) {
                 popUpTo(NavRoute.Intro) { inclusive = true }
             }
         } else {
-            // LẦN SAU: Sang thẳng ĐĂNG NHẬP
-            boDieuHuong.navigate(NavRoute.Login) {
+            // LẦN SAU: Sang thẳng HOME để khách trải nghiệm ngay (Thay vì Login)
+            boDieuHuong.navigate(NavRoute.Home) {
                 popUpTo(NavRoute.Intro) { inclusive = true }
             }
         }
