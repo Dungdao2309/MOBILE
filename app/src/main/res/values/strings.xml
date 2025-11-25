@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">StuShare</string>
+
+    <string name="home_greeting">Xin chào,</string>
+    <string name="home_search_hint">Tìm kiếm tài liệu</string>
+    <string name="section_new_uploads">Mới được tải lên</string>
+    <string name="section_exam_prep">Tài liệu ôn thi</string>
+    <string name="btn_view_all">Xem tất cả</string>
+    <string name="error_no_data">Không có dữ liệu.</string>
+    <string name="msg_pull_to_refresh">Vui lòng kéo xuống để thử tải lại.</string>
+    <string name="btn_retry">Thử lại</string>
+
+    <string name="btn_download">Tải về ngay</string>
 </resources>

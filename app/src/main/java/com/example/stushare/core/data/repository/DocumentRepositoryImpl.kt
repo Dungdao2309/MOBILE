@@ -11,8 +11,7 @@ import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 
-// Thời gian cache: 15 phút
-private const val CACHE_DURATION_MS = 15 * 60 * 1000
+private const val CACHE_DURATION_MS = 15 * 60 * 1000 // 15 phút
 
 class DocumentRepositoryImpl @Inject constructor(
     private val documentDao: DocumentDao,
@@ -20,21 +19,13 @@ class DocumentRepositoryImpl @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : DocumentRepository {
 
-    override fun getAllDocuments(): Flow<List<Document>> {
-        return documentDao.getAllDocuments()
-    }
+    override fun getAllDocuments(): Flow<List<Document>> = documentDao.getAllDocuments()
 
-    override fun getDocumentById(documentId: String): Flow<Document> {
-        return documentDao.getDocumentById(documentId)
-    }
+    override fun getDocumentById(documentId: String): Flow<Document> = documentDao.getDocumentById(documentId)
 
-    override suspend fun searchDocuments(query: String): List<Document> {
-        return documentDao.searchDocuments(query)
-    }
+    override suspend fun searchDocuments(query: String): List<Document> = documentDao.searchDocuments(query)
 
-    override fun getDocumentsByType(type: String): Flow<List<Document>> {
-        return documentDao.getDocumentsByType(type)
-    }
+    override fun getDocumentsByType(type: String): Flow<List<Document>> = documentDao.getDocumentsByType(type)
 
     override suspend fun refreshDocumentsIfStale() {
         val lastRefresh = settingsRepository.lastRefreshTimestamp.first()
@@ -46,7 +37,7 @@ class DocumentRepositoryImpl @Inject constructor(
                 refreshDocuments()
             } catch (e: Exception) {
                 e.printStackTrace()
-                throw e
+                // Không throw lỗi ở đây để UI vẫn hiện dữ liệu cũ (cache) nếu có
             }
         }
     }
@@ -59,10 +50,9 @@ class DocumentRepositoryImpl @Inject constructor(
             // 2. Chuyển đổi
             val databaseDocuments = networkDocuments.map { it.toDocumentEntity() }
 
-            // 3. Cập nhật DB (Xóa cũ -> Thêm mới)
-            // ⭐️ CHUẨN: Dùng 2 lệnh này để khớp với Unit Test
-            documentDao.deleteAllDocuments()
-            documentDao.insertAllDocuments(databaseDocuments)
+            // 3. CẬP NHẬT DB (Dùng Transaction để tránh màn hình trắng xóa)
+            // Hàm này sẽ xóa cũ và chèn mới trong cùng 1 giao dịch
+            documentDao.replaceAllDocuments(databaseDocuments)
 
             // 4. Lưu thời gian
             settingsRepository.updateLastRefreshTimestamp()
