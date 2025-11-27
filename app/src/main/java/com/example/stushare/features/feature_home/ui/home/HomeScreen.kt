@@ -1,22 +1,18 @@
 package com.example.stushare.features.feature_home.ui.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.CloudUpload // ⭐️ IMPORT MỚI
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -42,9 +38,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.stushare.R
 import com.example.stushare.features.feature_home.ui.components.DocumentCard
-import com.example.stushare.ui.theme.PrimaryGreen
 import com.example.stushare.ui.theme.LightGreen
-import com.example.stushare.features.feature_home.ui.home.HomeScreenSkeleton
+import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -55,27 +50,26 @@ fun HomeScreen(
     onViewAllClick: (String) -> Unit,
     onDocumentClick: (String) -> Unit,
     onCreateRequestClick: () -> Unit,
-    onUploadClick: () -> Unit // ⭐️ THÊM THAM SỐ NÀY
+    onUploadClick: () -> Unit,
+    onLeaderboardClick: () -> Unit,
+    onNotificationClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Xử lý thông báo lỗi
     LaunchedEffect(uiState.errorMessage) {
         if (uiState.errorMessage != null && uiState.newDocuments.isNotEmpty()) {
-            snackbarHostState.showSnackbar(
-                message = uiState.errorMessage ?: "Lỗi",
-                actionLabel = "Đóng",
-                duration = SnackbarDuration.Short
-            )
+            snackbarHostState.showSnackbar(message = uiState.errorMessage ?: "Đã xảy ra lỗi")
             viewModel.clearError()
         }
     }
 
+    // Xác định số cột dựa trên kích thước màn hình
     val columns = when (windowSizeClass.widthSizeClass) {
         WindowWidthSizeClass.Compact -> 1
         WindowWidthSizeClass.Medium -> 2
-        WindowWidthSizeClass.Expanded -> 3
-        else -> 1
+        else -> 3
     }
 
     val swipeRefreshState = rememberPullRefreshState(
@@ -85,223 +79,168 @@ fun HomeScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onCreateRequestClick() },
+                onClick = onCreateRequestClick,
                 containerColor = PrimaryGreen,
                 contentColor = Color.White
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Tạo yêu cầu mới")
+                Icon(Icons.Filled.Add, contentDescription = "Tạo yêu cầu")
             }
         }
     ) { paddingValues ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
                 .padding(paddingValues)
                 .pullRefresh(swipeRefreshState)
         ) {
-            when {
-                uiState.isLoading && uiState.newDocuments.isEmpty() -> {
-                    HomeScreenSkeleton(columns = columns)
-                }
-                uiState.errorMessage != null && uiState.newDocuments.isEmpty() -> {
-                    ErrorState(
-                        message = uiState.errorMessage ?: "Đã xảy ra lỗi",
-                        onRetry = { viewModel.refreshData() }
-                    )
-                }
-                uiState.newDocuments.isEmpty() && uiState.examDocuments.isEmpty() -> {
-                    EmptyState()
-                }
-                else -> {
-                    HomeContent(
-                        columns = columns,
-                        uiState = uiState,
-                        onSearchClick = onSearchClick,
-                        onViewAllClick = onViewAllClick,
-                        onDocumentClick = onDocumentClick,
-                        onUploadClick = onUploadClick // ⭐️ TRUYỀN XUỐNG
-                    )
-                }
+            if (uiState.isLoading && uiState.newDocuments.isEmpty()) {
+                // Hiển thị khung xương khi đang tải lần đầu
+                // Lưu ý: Đảm bảo bạn đã có Composable HomeScreenSkeleton trong project
+                HomeScreenSkeleton(columns)
+            } else {
+                HomeContent(
+                    uiState = uiState,
+                    onSearchClick = onSearchClick,
+                    onViewAllClick = onViewAllClick,
+                    onDocumentClick = onDocumentClick,
+                    onUploadClick = onUploadClick,
+                    onLeaderboardClick = onLeaderboardClick,
+                    onNotificationClick = onNotificationClick
+                )
             }
-
+            // Chỉ báo loading khi kéo xuống
             PullRefreshIndicator(
                 refreshing = uiState.isRefreshing,
                 state = swipeRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter),
-                backgroundColor = MaterialTheme.colorScheme.surface,
-                contentColor = PrimaryGreen
+                modifier = Modifier.align(Alignment.TopCenter)
             )
         }
     }
 }
 
 @Composable
-fun EmptyState() {
-    TODO("Not yet implemented")
-}
-
-@Composable
-fun ErrorState(message: String, onRetry: () -> Unit) {
-    TODO("Not yet implemented")
-}
-
-@Composable
 private fun HomeContent(
-    columns: Int,
     uiState: HomeUiState,
     onSearchClick: () -> Unit,
     onViewAllClick: (String) -> Unit,
     onDocumentClick: (String) -> Unit,
-    onUploadClick: () -> Unit // ⭐️ NHẬN THAM SỐ
+    onUploadClick: () -> Unit,
+    onLeaderboardClick: () -> Unit,
+    onNotificationClick: () -> Unit
 ) {
-    if (columns == 1) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 80.dp)
-        ) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
+        item {
+            HomeHeaderSection(
+                userName = uiState.userName,
+                avatarUrl = uiState.avatarUrl,
+                onSearchClick = onSearchClick,
+                onUploadClick = onUploadClick,
+                onLeaderboardClick = onLeaderboardClick,
+                onNotificationClick = onNotificationClick
+            )
+        }
+
+        // Phần: Tài liệu mới tải lên
+        if (uiState.newDocuments.isNotEmpty()) {
             item {
-                HomeHeaderSection(
-                    userName = uiState.userName,
-                    avatarUrl = uiState.avatarUrl,
-                    onSearchClick = onSearchClick,
-                    onUploadClick = onUploadClick // ⭐️ TRUYỀN XUỐNG HEADER
+                // Lưu ý: Đảm bảo bạn đã có Composable DocumentSectionHeader
+                DocumentSectionHeader(
+                    title = stringResource(R.string.section_new_uploads),
+                    onViewAllClick = { onViewAllClick("new_uploads") }
                 )
             }
-            if (uiState.newDocuments.isNotEmpty()) {
-                item {
-                    DocumentSectionHeader(
-                        title = stringResource(R.string.section_new_uploads),
-                        onViewAllClick = { onViewAllClick("new_uploads") }
-                    )
-                }
-                item {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp)
-                    ) {
-                        items(items = uiState.newDocuments, key = { it.id }) { document ->
-                            DocumentCard(
-                                document = document,
-                                onClick = { onDocumentClick(document.id.toString()) }
-                            )
-                        }
-                    }
-                }
-            }
-            if (uiState.examDocuments.isNotEmpty()) {
-                item {
-                    DocumentSectionHeader(
-                        title = stringResource(R.string.section_exam_prep),
-                        onViewAllClick = { onViewAllClick("exam_prep") }
-                    )
-                }
-                item {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp)
-                    ) {
-                        items(items = uiState.examDocuments, key = { it.id }) { document ->
-                            DocumentCard(
-                                document = document,
-                                onClick = { onDocumentClick(document.id.toString()) }
-                            )
-                        }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(uiState.newDocuments) { doc ->
+                        // --- ĐÃ SỬA LỖI TẠI ĐÂY ---
+                        DocumentCard(
+                            document = doc,
+                            onClick = { onDocumentClick(doc.id.toString()) }
+                        )
                     }
                 }
             }
         }
-    } else {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item(span = { GridItemSpan(columns) }) {
-                HomeHeaderSection(
-                    userName = uiState.userName,
-                    avatarUrl = uiState.avatarUrl,
-                    onSearchClick = onSearchClick,
-                    onUploadClick = onUploadClick
-                )
-            }
-            // Logic grid items...
-            if (uiState.newDocuments.isNotEmpty()) {
-                item(span = { GridItemSpan(columns) }) {
-                    DocumentSectionHeader(
-                        title = stringResource(R.string.section_new_uploads),
-                        onViewAllClick = { onViewAllClick("new_uploads") }
-                    )
-                }
-                items(items = uiState.newDocuments, key = { it.id }) { document ->
-                    DocumentCard(
-                        document = document,
-                        onClick = { onDocumentClick(document.id.toString()) }
-                    )
-                }
-            }
-        }
+
+        // Bạn có thể thêm các section khác ở đây (ví dụ: Tài liệu phổ biến...)
     }
 }
-
-// ... (EmptyState, ErrorState giữ nguyên) ...
 
 @Composable
 fun HomeHeaderSection(
     userName: String,
     avatarUrl: String?,
     onSearchClick: () -> Unit,
-    onUploadClick: () -> Unit // ⭐️ NHẬN THAM SỐ
+    onUploadClick: () -> Unit,
+    onLeaderboardClick: () -> Unit,
+    onNotificationClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
             .background(PrimaryGreen)
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+            .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = avatarUrl,
                 contentDescription = "Avatar",
-                modifier = Modifier.size(50.dp).clip(CircleShape).background(Color.White.copy(0.3f)),
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(0.3f)),
                 contentScale = ContentScale.Crop
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(Modifier.width(12.dp))
             Column {
-                Text(stringResource(R.string.home_greeting), color = Color.White, fontSize = 16.sp)
-                Text(userName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-
-            // ⭐️ NÚT UPLOAD Ở GÓC PHẢI
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(
-                onClick = onUploadClick,
-                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.CloudUpload,
-                    contentDescription = "Tải tài liệu lên",
-                    modifier = Modifier.size(28.dp)
+                Text("Xin chào,", color = Color.White, fontSize = 14.sp)
+                Text(
+                    text = userName,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
+            Spacer(Modifier.weight(1f))
+
+            // 3 Nút chức năng trên Header
+            IconButton(onClick = onLeaderboardClick) {
+                Icon(Icons.Default.EmojiEvents, contentDescription = "Bảng xếp hạng", tint = Color.White)
+            }
+            IconButton(onClick = onNotificationClick) {
+                Icon(Icons.Default.Notifications, contentDescription = "Thông báo", tint = Color.White)
+            }
+            IconButton(onClick = onUploadClick) {
+                Icon(Icons.Default.CloudUpload, contentDescription = "Tải lên", tint = Color.White)
+            }
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+
+        // Thanh tìm kiếm
         Surface(
-            modifier = Modifier.fillMaxWidth().height(50.dp).clickable { onSearchClick() },
+            onClick = onSearchClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
             shape = RoundedCornerShape(12.dp),
             color = LightGreen
         ) {
-            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.home_search_hint), color = Color.Gray, modifier = Modifier.weight(1f))
-                Icon(Icons.Default.Search, null, tint = Color.Gray)
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Tìm kiếm tài liệu...",
+                    color = Color.Gray,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray)
             }
         }
     }

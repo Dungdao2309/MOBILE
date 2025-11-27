@@ -20,4 +20,5 @@ interface UserDao {
     // Lấy thông tin một người dùng cụ thể (để cộng điểm)
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId: String): UserEntity?
+
 }

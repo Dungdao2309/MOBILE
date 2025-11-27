@@ -13,5 +13,7 @@ interface LeaderboardRepository {
 
     // Hàm cập nhật điểm cho User (dùng khi họ upload tài liệu thành công)
     suspend fun updateUserContribution(userId: String, points: Int)
-    fun refreshLeaderboard()
+
+    // --- BẠN CẦN THÊM DÒNG NÀY ---
+    suspend fun refreshLeaderboard()
 }
