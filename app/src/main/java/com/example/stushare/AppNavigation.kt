@@ -37,6 +37,10 @@ import com.example.stushare.features.feature_leaderboard.ui.LeaderboardScreen
 import com.example.stushare.features.feature_leaderboard.ui.LeaderboardViewModel
 import com.example.stushare.features.feature_notification.ui.NotificationScreen
 
+// ⭐️ IMPORT PROFILE MỚI
+import com.example.stushare.features.feature_profile.ui.ProfileScreen
+import com.example.stushare.features.feature_profile.ui.ProfileViewModel
+
 @Composable
 fun AppNavigation(
     navController: NavHostController,
@@ -58,7 +62,7 @@ fun AppNavigation(
         popEnterTransition = { fadeIn(animationSpec = tween(duration)) },
         popExitTransition = { fadeOut(animationSpec = tween(duration)) }
     ) {
-        // ... (Giữ nguyên các phần Auth)
+        // --- NHÓM AUTH (Giữ nguyên) ---
         composable<NavRoute.Intro> { ManHinhChao(navController) }
         composable<NavRoute.Onboarding> { ManHinhGioiThieu(navController) }
         composable<NavRoute.Login> { ManHinhDangNhap(navController) }
@@ -69,7 +73,21 @@ fun AppNavigation(
             val args = backStackEntry.toRoute<NavRoute.VerifyOTP>()
             ManHinhXacThucOTP(navController, args.verificationId)
         }
-        composable<NavRoute.Profile> { ManHinhCaNhan(navController) }
+
+        // ⭐️ CẬP NHẬT: Dùng ProfileScreen xịn thay vì ManHinhCaNhan
+        composable<NavRoute.Profile> {
+            val viewModel = hiltViewModel<ProfileViewModel>()
+            val context = LocalContext.current
+            ProfileScreen(
+                viewModel = viewModel,
+                onNavigateToSettings = {
+                    Toast.makeText(context, "Tính năng đang phát triển", Toast.LENGTH_SHORT).show()
+                },
+                onNavigateToLeaderboard = {
+                    navController.navigate(NavRoute.Leaderboard)
+                }
+            )
+        }
 
         // --- MAIN APP ---
         composable<NavRoute.Home> {
@@ -87,13 +105,12 @@ fun AppNavigation(
                     if (FirebaseAuth.getInstance().currentUser != null) navController.navigate(NavRoute.Upload)
                     else { Toast.makeText(context, "Cần đăng nhập!", Toast.LENGTH_SHORT).show(); navController.navigate(NavRoute.Login) }
                 },
-                // ⭐️ ĐÃ KHẮC PHỤC LỖI ĐỎ Ở ĐÂY
                 onLeaderboardClick = { navController.navigate(NavRoute.Leaderboard) },
                 onNotificationClick = { navController.navigate(NavRoute.Notification) }
             )
         }
 
-        // ... (Các màn hình Search, List, Detail giữ nguyên)
+        // --- CÁC MÀN HÌNH CHI TIẾT ---
         composable<NavRoute.Search>(enterTransition = { slideIn }, exitTransition = { slideOut }, popEnterTransition = { popSlideIn }, popExitTransition = { popSlideOut }) {
             SearchScreen(onBackClick = { navController.popBackStack() }, onSearchSubmit = { query -> navController.navigate(NavRoute.SearchResult(query)) })
         }
@@ -118,7 +135,7 @@ fun AppNavigation(
             CreateRequestScreen(onBackClick = { navController.popBackStack() }, onSubmitClick = { navController.popBackStack() })
         }
 
-        // ⭐️ 3 TÍNH NĂNG MỚI
+        // --- TÍNH NĂNG MỚI ---
         composable<NavRoute.Upload>(enterTransition = { slideIn }, exitTransition = { slideOut }, popEnterTransition = { popSlideIn }, popExitTransition = { popSlideOut }) {
             val viewModel = hiltViewModel<UploadViewModel>()
             UploadScreen(viewModel = viewModel, onBackClick = { navController.popBackStack() })
