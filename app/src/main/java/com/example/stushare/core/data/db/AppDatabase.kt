@@ -1,26 +1,25 @@
-// File: core/data/db/AppDatabase.kt
-// (⭐️ ĐÃ CẬP NHẬT - XÓA REQUEST ⭐️)
-
 package com.example.stushare.core.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.example.stushare.core.data.models.Document
-// ⭐️ XÓA: import com.example.stushare.core.data.models.DocumentRequest
+import com.example.stushare.core.data.models.NotificationEntity
+import com.example.stushare.core.data.models.UserEntity // ⭐️ Import bảng User
 
 @Database(
     entities = [
-        Document::class
-        // ⭐️ XÓA: DocumentRequest::class
+        Document::class,           // Bảng Tài liệu
+        NotificationEntity::class, // Bảng Thông báo
+        UserEntity::class          // ⭐️ Bảng Người dùng (cho Bảng xếp hạng)
     ],
-    version = 2, // (Bạn có thể cần tăng version nếu Room yêu cầu)
+    version = 3, // ⭐️ QUAN TRỌNG: Tăng version lên 3 để tránh lỗi crash
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
+    // Các hàm lấy DAO để Repository sử dụng
     abstract fun documentDao(): DocumentDao
-    // ⭐️ XÓA: abstract fun requestDao(): RequestDao
-
-    // ĐẢM BẢO KHÔNG CÓ companion object nào chứa getInstance() hay @Provides Ở ĐÂY
+    abstract fun notificationDao(): NotificationDao
+    abstract fun userDao(): UserDao // ⭐️ DAO cho User
 
 }

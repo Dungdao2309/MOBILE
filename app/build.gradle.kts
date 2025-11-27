@@ -46,6 +46,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.play.services.games)
     val work_version = "2.9.1" // Check for the latest version if needed
     implementation("androidx.work:work-runtime-ktx:$work_version")
 
@@ -54,6 +55,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-storage")
 
     // Serialization & Navigation (Bắt buộc cho code mới)
     implementation(libs.kotlinx.serialization.json)

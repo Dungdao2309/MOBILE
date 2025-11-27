@@ -4,28 +4,23 @@ import android.content.Context
 import androidx.room.Room
 import com.example.stushare.core.data.db.AppDatabase
 import com.example.stushare.core.data.db.DocumentDao
-// ⭐️ XÓA: import com.example.stushare.core.data.db.RequestDao
+import com.example.stushare.core.data.db.NotificationDao // ⭐️ IMPORT
 import com.example.stushare.core.data.network.models.ApiService
-import com.example.stushare.core.data.repository.DocumentRepository
-import com.example.stushare.core.data.repository.DocumentRepositoryImpl
-import com.example.stushare.core.data.repository.RequestRepository
-import com.example.stushare.core.data.repository.RequestRepositoryImpl
-import com.example.stushare.core.data.repository.SettingsRepository
+import com.example.stushare.core.data.repository.* // Import hết repository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage // ⭐️ IMPORT
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
-// ⭐️ IMPORT THÊM:
-import com.google.firebase.auth.FirebaseAuth // <-- IMPORT CẦN THIẾT
-import com.google.firebase.firestore.FirebaseFirestore
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    // 1. Cung cấp AppDatabase (Giữ nguyên)
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -38,33 +33,47 @@ object DatabaseModule {
             .build()
     }
 
-    // 2. Cung cấp DocumentDao (Giữ nguyên)
     @Provides
     fun provideDocumentDao(database: AppDatabase): DocumentDao {
         return database.documentDao()
     }
 
-    // 3. Cung cấp DocumentRepository (Giữ nguyên)
+    // ⭐️ 1. CUNG CẤP NOTIFICATION DAO
+    @Provides
+    fun provideNotificationDao(database: AppDatabase): NotificationDao {
+        return database.notificationDao()
+    }
+
+    // ⭐️ 2. CẬP NHẬT: THÊM FIREBASE CHO DOCUMENT REPO (QUAN TRỌNG)
     @Provides
     @Singleton
     fun provideDocumentRepository(
         documentDao: DocumentDao,
         apiService: ApiService,
-        settingsRepository: SettingsRepository
+        settingsRepository: SettingsRepository,
+        // Inject thêm 2 cái này:
+        storage: FirebaseStorage,
+        firestore: FirebaseFirestore
     ): DocumentRepository {
-        return DocumentRepositoryImpl(documentDao, apiService, settingsRepository)
+        // Truyền đủ 5 tham số cho Impl
+        return DocumentRepositoryImpl(documentDao, apiService, settingsRepository, storage, firestore)
     }
 
-    // 4. Cung cấp RequestRepository (⭐️ ĐÃ CẬP NHẬT ⭐️)
+    // ⭐️ 3. CUNG CẤP NOTIFICATION REPOSITORY
+    @Provides
+    @Singleton
+    fun provideNotificationRepository(
+        notificationDao: NotificationDao
+    ): NotificationRepository {
+        return NotificationRepositoryImpl(notificationDao)
+    }
+
     @Provides
     @Singleton
     fun provideRequestRepository(
-        // ⭐️ THAY ĐỔI: Inject Firestore (từ FirebaseModule)
         firestore: FirebaseFirestore,
-        // ⭐️ THÊM MỚI: Inject FirebaseAuth (từ FirebaseModule)
         firebaseAuth: FirebaseAuth
     ): RequestRepository {
-        // ⭐️ THAY ĐỔI: Trả về Impl mới với 2 tham số
         return RequestRepositoryImpl(firestore, firebaseAuth)
     }
 }

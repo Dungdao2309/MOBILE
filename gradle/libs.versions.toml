@@ -26,6 +26,7 @@ coroutinesTest = "1.8.0"
 archTesting = "2.2.0"
 windowSizeClass = "1.1.2"
 kotlinTest = "1.9.20"
+playServicesGames = "24.0.0"
 
 [libraries]
 # Thư viện Serialization (Bắt buộc)
@@ -70,6 +71,7 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 androidx-core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "coreKtx" }
 material-core = { group = "androidx.compose.material", name = "material" }
 material3-adaptive = { group = "androidx.compose.material3", name = "material3-adaptive" }
+play-services-games = { group = "com.google.android.gms", name = "play-services-games", version.ref = "playServicesGames" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

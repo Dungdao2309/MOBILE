@@ -22,4 +22,10 @@ interface DocumentRepository {
 
     suspend fun refreshDocuments()
     suspend fun refreshDocumentsIfStale()
+
+    suspend fun uploadDocument(
+        title: String,
+        description: String,
+        fileUri: android.net.Uri
+    ): Result<String>
 }

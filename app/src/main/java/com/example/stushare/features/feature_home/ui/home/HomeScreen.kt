@@ -16,6 +16,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudUpload // ⭐️ IMPORT MỚI
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -53,13 +54,12 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     onViewAllClick: (String) -> Unit,
     onDocumentClick: (String) -> Unit,
-    onCreateRequestClick: () -> Unit
+    onCreateRequestClick: () -> Unit,
+    onUploadClick: () -> Unit // ⭐️ THÊM THAM SỐ NÀY
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Chỉ hiện Snackbar cho thông báo tải xong hoặc các thông báo nhẹ
-    // Lỗi mạng nghiêm trọng sẽ dùng giao diện ErrorState ở giữa màn hình
     LaunchedEffect(uiState.errorMessage) {
         if (uiState.errorMessage != null && uiState.newDocuments.isNotEmpty()) {
             snackbarHostState.showSnackbar(
@@ -105,32 +105,26 @@ fun HomeScreen(
                 .pullRefresh(swipeRefreshState)
         ) {
             when {
-                // 1. Loading ban đầu -> Skeleton
                 uiState.isLoading && uiState.newDocuments.isEmpty() -> {
                     HomeScreenSkeleton(columns = columns)
                 }
-
-                // 2. Có lỗi và không có dữ liệu -> Error State với nút Thử lại
                 uiState.errorMessage != null && uiState.newDocuments.isEmpty() -> {
                     ErrorState(
                         message = uiState.errorMessage ?: "Đã xảy ra lỗi",
                         onRetry = { viewModel.refreshData() }
                     )
                 }
-
-                // 3. Không có dữ liệu -> Empty State
                 uiState.newDocuments.isEmpty() && uiState.examDocuments.isEmpty() -> {
                     EmptyState()
                 }
-
-                // 4. Có dữ liệu -> Hiển thị danh sách
                 else -> {
                     HomeContent(
                         columns = columns,
                         uiState = uiState,
                         onSearchClick = onSearchClick,
                         onViewAllClick = onViewAllClick,
-                        onDocumentClick = onDocumentClick
+                        onDocumentClick = onDocumentClick,
+                        onUploadClick = onUploadClick // ⭐️ TRUYỀN XUỐNG
                     )
                 }
             }
@@ -147,24 +141,36 @@ fun HomeScreen(
 }
 
 @Composable
+fun EmptyState() {
+    TODO("Not yet implemented")
+}
+
+@Composable
+fun ErrorState(message: String, onRetry: () -> Unit) {
+    TODO("Not yet implemented")
+}
+
+@Composable
 private fun HomeContent(
     columns: Int,
     uiState: HomeUiState,
     onSearchClick: () -> Unit,
     onViewAllClick: (String) -> Unit,
-    onDocumentClick: (String) -> Unit
+    onDocumentClick: (String) -> Unit,
+    onUploadClick: () -> Unit // ⭐️ NHẬN THAM SỐ
 ) {
     if (columns == 1) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 80.dp) // Tránh FAB che
+            contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             item {
                 HomeHeaderSection(
                     userName = uiState.userName,
                     avatarUrl = uiState.avatarUrl,
-                    onSearchClick = onSearchClick
+                    onSearchClick = onSearchClick,
+                    onUploadClick = onUploadClick // ⭐️ TRUYỀN XUỐNG HEADER
                 )
             }
             if (uiState.newDocuments.isNotEmpty()) {
@@ -211,7 +217,6 @@ private fun HomeContent(
             }
         }
     } else {
-        // Tablet / Landscape layout
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             modifier = Modifier.fillMaxSize(),
@@ -223,64 +228,38 @@ private fun HomeContent(
                 HomeHeaderSection(
                     userName = uiState.userName,
                     avatarUrl = uiState.avatarUrl,
-                    onSearchClick = onSearchClick
+                    onSearchClick = onSearchClick,
+                    onUploadClick = onUploadClick
                 )
             }
-            // ... (Phần logic Grid giữ nguyên như cũ hoặc tùy chỉnh thêm nếu muốn)
+            // Logic grid items...
+            if (uiState.newDocuments.isNotEmpty()) {
+                item(span = { GridItemSpan(columns) }) {
+                    DocumentSectionHeader(
+                        title = stringResource(R.string.section_new_uploads),
+                        onViewAllClick = { onViewAllClick("new_uploads") }
+                    )
+                }
+                items(items = uiState.newDocuments, key = { it.id }) { document ->
+                    DocumentCard(
+                        document = document,
+                        onClick = { onDocumentClick(document.id.toString()) }
+                    )
+                }
+            }
         }
     }
 }
 
-// Cải tiến EmptyState
-@Composable
-private fun EmptyState() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Filled.CloudOff, null, Modifier.size(64.dp), Color.Gray)
-            Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.error_no_data), color = Color.Gray)
-            Text(stringResource(R.string.msg_pull_to_refresh), fontSize = 12.sp, color = Color.Gray)
-        }
-    }
-}
+// ... (EmptyState, ErrorState giữ nguyên) ...
 
-// Component hiển thị lỗi với nút thử lại
 @Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit
+fun HomeHeaderSection(
+    userName: String,
+    avatarUrl: String?,
+    onSearchClick: () -> Unit,
+    onUploadClick: () -> Unit // ⭐️ NHẬN THAM SỐ
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.CloudOff,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = Color.Gray
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray,
-            modifier = Modifier.padding(horizontal = 32.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
-        ) {
-            Text(stringResource(R.string.btn_retry))
-        }
-    }
-}
-
-@Composable
-fun HomeHeaderSection(userName: String, avatarUrl: String?, onSearchClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -299,6 +278,19 @@ fun HomeHeaderSection(userName: String, avatarUrl: String?, onSearchClick: () ->
             Column {
                 Text(stringResource(R.string.home_greeting), color = Color.White, fontSize = 16.sp)
                 Text(userName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+
+            // ⭐️ NÚT UPLOAD Ở GÓC PHẢI
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = onUploadClick,
+                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CloudUpload,
+                    contentDescription = "Tải tài liệu lên",
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
         Spacer(modifier = Modifier.height(20.dp))

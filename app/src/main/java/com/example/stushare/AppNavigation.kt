@@ -15,7 +15,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 
+// Import Hilt & Navigation
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.stushare.core.navigation.NavRoute
+
+// Import các màn hình (Đã lọc bỏ import sai)
 import com.example.stushare.feature_document_detail.ui.detail.DocumentDetailScreen
 import com.example.stushare.feature_request.ui.list.RequestListScreen
 import com.example.stushare.features.feature_home.ui.home.HomeScreen
@@ -24,6 +28,16 @@ import com.example.stushare.features.feature_request.ui.create.CreateRequestScre
 import com.example.stushare.features.feature_search.ui.search.SearchScreen
 import com.example.stushare.feature_search.ui.search.SearchResultScreen
 import com.example.stushare.features.auth.ui.*
+import com.example.stushare.features.feature_notification.ui.NotificationScreen
+
+// Import Upload
+import com.example.stushare.features.feature_upload.ui.UploadScreen
+import com.example.stushare.features.feature_upload.ui.UploadViewModel
+
+// ⭐️ Import Leaderboard (CHỈ GIỮ LẠI PACKAGE MỚI NÀY)
+import com.example.stushare.features.feature_leaderboard.ui.LeaderboardScreen
+import com.example.stushare.features.feature_leaderboard.ui.LeaderboardViewModel
+
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -69,7 +83,6 @@ fun AppNavigation(
                 onViewAllClick = { category -> navController.navigate(NavRoute.ViewAll(category)) },
                 onDocumentClick = { documentId -> navController.navigate(NavRoute.DocumentDetail(documentId)) },
 
-                // ⭐️ LOGIC BẢO VỆ: Chỉ cho phép tạo yêu cầu nếu đã đăng nhập
                 onCreateRequestClick = {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
@@ -78,7 +91,54 @@ fun AppNavigation(
                         Toast.makeText(context, "Vui lòng đăng nhập để sử dụng tính năng này!", Toast.LENGTH_SHORT).show()
                         navController.navigate(NavRoute.Login)
                     }
+                },
+
+                onUploadClick = {
+                    val user = FirebaseAuth.getInstance().currentUser
+                    if (user != null) {
+                        navController.navigate(NavRoute.Upload)
+                    } else {
+                        Toast.makeText(context, "Vui lòng đăng nhập để tải tài liệu!", Toast.LENGTH_SHORT).show()
+                        navController.navigate(NavRoute.Login)
+                    }
+                },
+
+                // ⭐️ SỰ KIỆN MỞ BẢNG XẾP HẠNG
+                onLeaderboardClick = {
+                    navController.navigate(NavRoute.Leaderboard)
+                },
+
+                // ⭐️ SỰ KIỆN MỞ THÔNG BÁO
+                onNotificationClick = {
+                    navController.navigate(NavRoute.Notification)
                 }
+            )
+        }
+
+        composable<NavRoute.Upload>(
+            enterTransition = { slideIn },
+            exitTransition = { slideOut },
+            popEnterTransition = { popSlideIn },
+            popExitTransition = { popSlideOut }
+        ) {
+            val viewModel = hiltViewModel<UploadViewModel>()
+            UploadScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable<NavRoute.Leaderboard> {
+            val viewModel = hiltViewModel<LeaderboardViewModel>()
+            LeaderboardScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable<NavRoute.Notification> {
+            NotificationScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -107,15 +167,12 @@ fun AppNavigation(
             )
         }
 
-        // --- CẬP NHẬT QUAN TRỌNG TẠI ĐÂY ---
         composable<NavRoute.DocumentDetail> { backStackEntry ->
             val route = backStackEntry.toRoute<NavRoute.DocumentDetail>()
-            val context = LocalContext.current // Lấy context để hiện Toast
-
+            val context = LocalContext.current
             DocumentDetailScreen(
                 documentId = route.documentId,
                 onBackClick = { navController.popBackStack() },
-                // Truyền callback xử lý khi cần đăng nhập
                 onLoginRequired = {
                     Toast.makeText(context, "Vui lòng đăng nhập để sử dụng tính năng này!", Toast.LENGTH_SHORT).show()
                     navController.navigate(NavRoute.Login)
@@ -133,11 +190,10 @@ fun AppNavigation(
         }
 
         composable<NavRoute.RequestList> {
-            val context = LocalContext.current // Lấy context để hiện Toast
+            val context = LocalContext.current
             RequestListScreen(
                 onBackClick = { navController.popBackStack() },
                 onCreateRequestClick = {
-                    // Logic bảo vệ tương tự cho màn hình danh sách yêu cầu
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
                         navController.navigate(NavRoute.CreateRequest)
