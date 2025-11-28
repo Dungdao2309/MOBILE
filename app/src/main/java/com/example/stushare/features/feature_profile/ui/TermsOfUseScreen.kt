@@ -13,7 +13,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.stushare.R.string.*
+// ⭐️ SỬA LẠI IMPORT CHUẨN:
+import com.example.stushare.R
 import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,8 +29,9 @@ fun TermsOfUseScreen(
         topBar = {
             TopAppBar(
                 title = {
+                    // ⭐️ SỬA LẠI: Thêm R.string.
                     Text(
-                        text = stringResource(terms_header),
+                        text = stringResource(R.string.terms_header),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -56,8 +58,9 @@ fun TermsOfUseScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            // ⭐️ SỬA LẠI: Thêm R.string.
             Text(
-                text = stringResource(terms_content),
+                text = stringResource(R.string.terms_content),
                 color = onSurfaceColor,
                 fontSize = 16.sp,
                 lineHeight = 24.sp

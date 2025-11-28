@@ -1,6 +1,5 @@
 package com.example.stushare.features.feature_profile.ui
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,7 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// ⭐️ Import đúng Resource và Theme của dự án chính
+// Import Resource và Theme
 import com.example.stushare.R
 import com.example.stushare.ui.theme.PrimaryGreen
 
@@ -37,10 +36,10 @@ fun SettingsScreen(
     onAboutAppClick: () -> Unit,
     onContactSupportClick: () -> Unit,
     onReportViolationClick: () -> Unit,
-    onSwitchAccountClick: () -> Unit
+    onSwitchAccountClick: () -> Unit,
+    onLogoutClick: () -> Unit // ⭐️ THÊM: Callback đăng xuất
 ) {
     val context = LocalContext.current
-    // Lấy màu động từ Theme
     val backgroundColor = MaterialTheme.colorScheme.background
 
     Scaffold(
@@ -63,7 +62,6 @@ fun SettingsScreen(
                         )
                     }
                 },
-                // ⭐️ SỬA: Dùng PrimaryGreen
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryGreen)
             )
         },
@@ -74,82 +72,75 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(top = 12.dp)
+                .padding(top = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Tài khoản
-            SettingsItem(
-                icon = Icons.Default.Person,
-                title = stringResource(R.string.acc_security),
-                onClick = onAccountSecurityClick
-            )
+            // --- CÁC MỤC CÀI ĐẶT ---
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // 1. Tài khoản
+                SettingsItem(
+                    icon = Icons.Default.Person,
+                    title = stringResource(R.string.acc_security),
+                    onClick = onAccountSecurityClick
+                )
+                Spacer(modifier = Modifier.height(2.dp))
 
-            Spacer(modifier = Modifier.height(2.dp))
+                // 2. Thông báo
+                SettingsItem(
+                    icon = Icons.Default.Notifications,
+                    title = stringResource(R.string.notifications),
+                    onClick = onNotificationSettingsClick
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Thông báo
-            SettingsItem(
-                icon = Icons.Default.Notifications,
-                title = stringResource(R.string.notifications),
-                onClick = onNotificationSettingsClick
-            )
+                // 3. Giao diện
+                SettingsItem(
+                    icon = Icons.Default.Face,
+                    title = stringResource(R.string.appearance_language),
+                    onClick = onAppearanceSettingsClick
+                )
+                Spacer(modifier = Modifier.height(2.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+                // 4. Thông tin
+                SettingsItem(
+                    icon = Icons.Default.Info,
+                    title = stringResource(R.string.about_stushare),
+                    onClick = onAboutAppClick
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // 3. Giao diện
-            SettingsItem(
-                icon = Icons.Default.Face,
-                title = stringResource(R.string.appearance_language),
-                onClick = onAppearanceSettingsClick
-            )
+                // 5. Hỗ trợ
+                SettingsItem(
+                    icon = Icons.Default.Call,
+                    title = stringResource(R.string.contact_support),
+                    onClick = onContactSupportClick
+                )
+                Spacer(modifier = Modifier.height(2.dp))
 
-            Spacer(modifier = Modifier.height(2.dp))
+                // 6. Báo cáo
+                SettingsItem(
+                    icon = Icons.Default.Warning,
+                    title = stringResource(R.string.report_violation),
+                    onClick = onReportViolationClick
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // 4. Thông tin
-            SettingsItem(
-                icon = Icons.Default.Info,
-                title = stringResource(R.string.about_stushare),
-                onClick = onAboutAppClick
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 5. Hỗ trợ
-            SettingsItem(
-                icon = Icons.Default.Call,
-                title = stringResource(R.string.contact_support),
-                onClick = onContactSupportClick
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // 6. Báo cáo
-            SettingsItem(
-                icon = Icons.Default.Warning,
-                title = stringResource(R.string.report_violation),
-                onClick = onReportViolationClick
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 7. Chuyển tài khoản
-            SettingsItem(
-                icon = Icons.Default.AccountBox,
-                title = stringResource(R.string.switch_account),
-                onClick = onSwitchAccountClick
-            )
+                // 7. Chuyển tài khoản
+                SettingsItem(
+                    icon = Icons.Default.AccountBox,
+                    title = stringResource(R.string.switch_account),
+                    onClick = onSwitchAccountClick
+                )
+            }
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Nút Đăng xuất
-            val logoutMsg = stringResource(R.string.logout_success)
+            // --- NÚT ĐĂNG XUẤT ---
             Button(
-                onClick = {
-                    // TODO: Xử lý đăng xuất qua ViewModel
-                    Toast.makeText(context, logoutMsg, Toast.LENGTH_SHORT).show()
-                },
+                onClick = onLogoutClick, // ⭐️ Gọi callback từ bên ngoài
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B6B)),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
                     .width(220.dp)
                     .height(48.dp)
             ) {
@@ -168,6 +159,15 @@ fun SettingsScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- THÔNG TIN VERSION ---
+            Text(
+                text = "Phiên bản 1.0.0",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -179,7 +179,6 @@ fun SettingsItem(
     title: String,
     onClick: () -> Unit
 ) {
-    // Màu nền item động
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
@@ -194,7 +193,6 @@ fun SettingsItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            // ⭐️ SỬA: Dùng PrimaryGreen
             tint = PrimaryGreen,
             modifier = Modifier.size(24.dp)
         )
