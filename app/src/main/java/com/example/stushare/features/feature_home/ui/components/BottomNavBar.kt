@@ -1,9 +1,5 @@
-package com.example.stushare
+package com.example.stushare.features.feature_home.ui.components
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,12 +27,8 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -52,102 +44,40 @@ import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import com.example.stushare.core.navigation.NavRoute
 import com.example.stushare.ui.theme.PrimaryGreen
-import com.example.stushare.ui.theme.StuShareTheme
-import dagger.hilt.android.AndroidEntryPoint
-
-@AndroidEntryPoint
-class MainActivity : ComponentActivity() {
-
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            val windowSizeClass = calculateWindowSizeClass(this)
-            StuShareTheme {
-                MainAppScreen(windowSizeClass = windowSizeClass)
-            }
-        }
-    }
-}
-
-@Composable
-fun MainAppScreen(windowSizeClass: WindowSizeClass) {
-    val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
-    // Xác định các màn hình sẽ hiển thị BottomBar
-    val showBottomBar = listOf(
-        NavRoute.Home,
-        NavRoute.Search,
-        NavRoute.Notification,
-        NavRoute.Profile,
-        NavRoute.RequestList, // Vẫn giữ lại nếu bạn cần điều hướng đến đây từ nơi khác
-        NavRoute.Upload       // Có thể hiện hoặc ẩn ở màn Upload tùy ý
-    ).any { route ->
-        currentDestination?.hasRoute(route::class) == true
-    }
-
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                // Sử dụng Component BottomNavBar tùy chỉnh ở bên dưới
-                BottomNavBar(navController = navController)
-            }
-        }
-    ) { innerPadding ->
-        // Sử dụng Box để padding bottom không làm che nội dung do nút nổi
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            AppNavigation(
-                navController = navController,
-                windowSizeClass = windowSizeClass
-            )
-        }
-    }
-}
-
-// ==========================================
-// PHẦN CUSTOM BOTTOM NAVIGATION BAR
-// ==========================================
 
 @Composable
 fun BottomNavBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // Định nghĩa các item bên Trái và Phải nút Upload
+    // Cấu hình danh sách các màn hình trong thanh điều hướng
+    // Lưu ý: Upload nằm riêng ở giữa, không nằm trong list này để dễ xử lý layout
     val leftItems = listOf(
         NavigationItem("Trang chủ", Icons.Filled.Home, Icons.Outlined.Home, NavRoute.Home),
         NavigationItem("Tìm kiếm", Icons.Filled.Search, Icons.Outlined.Search, NavRoute.Search)
     )
 
     val rightItems = listOf(
-        // Thay RequestList bằng Notification để giống thiết kế cũ
+        // Bạn có thể thay Notification bằng RequestList nếu muốn giống dự án cũ hoàn toàn
         NavigationItem("Thông báo", Icons.Filled.Notifications, Icons.Outlined.Notifications, NavRoute.Notification),
         NavigationItem("Cá nhân", Icons.Filled.Person, Icons.Outlined.Person, NavRoute.Profile)
     )
 
-    // Box tổng chứa cả thanh bar và nút nổi
+    // Tổng chiều cao bao gồm cả phần nút nổi
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp), // Tăng chiều cao để chứa phần nút nổi lên
+            .height(100.dp), // Đủ cao để chứa nút nổi
         contentAlignment = Alignment.BottomCenter
     ) {
-        // 1. Phần nền thanh Bar (Màu xanh, bo góc trên)
+        // 1. Phần nền thanh điều hướng (Màu xanh, bo góc trên)
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp) // Chiều cao chuẩn của BottomBar
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)), // Bo góc
+                .height(64.dp)
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
             color = PrimaryGreen,
             shadowElevation = 10.dp
         ) {
@@ -162,15 +92,13 @@ fun BottomNavBar(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     leftItems.forEach { item ->
-                        BottomNavItem(
-                            item = item,
-                            isSelected = currentDestination?.hasRoute(item.route::class) == true,
-                            onClick = { navigateSafe(navController, item.route) }
-                        )
+                        BottomNavItem(item, currentDestination?.hasRoute(item.route::class) == true) {
+                            navigateSafe(navController, item.route)
+                        }
                     }
                 }
 
-                // Khoảng trống ở giữa cho nút Upload
+                // Khoảng trống ở giữa cho nút Upload (56dp + margin)
                 Spacer(modifier = Modifier.size(60.dp))
 
                 // Nhóm icon bên phải
@@ -179,24 +107,22 @@ fun BottomNavBar(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     rightItems.forEach { item ->
-                        BottomNavItem(
-                            item = item,
-                            isSelected = currentDestination?.hasRoute(item.route::class) == true,
-                            onClick = { navigateSafe(navController, item.route) }
-                        )
+                        BottomNavItem(item, currentDestination?.hasRoute(item.route::class) == true) {
+                            navigateSafe(navController, item.route)
+                        }
                     }
                 }
             }
         }
 
-        // 2. Nút Upload Nổi (Floating Button) ở giữa
+        // 2. Nút Upload nổi (Nằm đè lên trên ở vị trí giữa)
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter) // Căn lên đỉnh của Box cha
+                .align(Alignment.TopCenter) // Căn lên đỉnh của Box cha 100dp
                 .offset(y = 10.dp) // Đẩy xuống một chút để khớp vị trí đẹp
                 .size(64.dp) // Kích thước vòng ngoài (viền trắng)
                 .clip(CircleShape)
-                .background(Color.White) // Viền trắng bao quanh
+                .background(Color.White) // Viền trắng bao quanh nút xanh
                 .clickable { navigateSafe(navController, NavRoute.Upload) }
                 .shadow(8.dp, CircleShape),
             contentAlignment = Alignment.Center
@@ -220,7 +146,7 @@ fun BottomNavBar(navController: NavController) {
     }
 }
 
-// Component hiển thị từng Item (Icon + Text)
+// Hàm hỗ trợ item con
 @Composable
 fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit) {
     Column(
@@ -236,7 +162,7 @@ fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit
         Icon(
             imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
             contentDescription = item.title,
-            // Nếu chọn: Màu trắng sáng. Không chọn: Màu trắng mờ
+            // Nếu chọn: Màu trắng. Không chọn: Màu trắng mờ
             tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
             modifier = Modifier.size(26.dp)
         )
@@ -244,14 +170,13 @@ fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit
             Text(
                 text = item.title,
                 fontSize = 10.sp,
-                color = Color.White,
-                modifier = Modifier.padding(top = 2.dp)
+                color = Color.White
             )
         }
     }
 }
 
-// Hàm tiện ích để điều hướng an toàn
+// Hàm điều hướng an toàn
 fun navigateSafe(navController: NavController, route: NavRoute) {
     navController.navigate(route) {
         popUpTo(navController.graph.findStartDestination().id) {
@@ -262,7 +187,6 @@ fun navigateSafe(navController: NavController, route: NavRoute) {
     }
 }
 
-// Data class cho item
 data class NavigationItem(
     val title: String,
     val selectedIcon: ImageVector,
