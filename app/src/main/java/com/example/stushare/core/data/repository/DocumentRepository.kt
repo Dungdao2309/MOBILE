@@ -3,11 +3,6 @@ package com.example.stushare.core.data.repository
 import com.example.stushare.core.data.models.Document
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Interface (Giao diện) cho Kho chứa Tài liệu.
- * ViewModel sẽ "nói chuyện" với cái này,
- * mà không cần biết dữ liệu đến từ DAO hay API.
- */
 interface DocumentRepository {
 
     fun getAllDocuments(): Flow<List<Document>>
@@ -26,6 +21,12 @@ interface DocumentRepository {
     suspend fun uploadDocument(
         title: String,
         description: String,
-        fileUri: android.net.Uri
+        fileUri: android.net.Uri,
+        mimeType: String // <--- Thêm cái này vào
     ): Result<String>
+
+    // 👇 THÊM 2 HÀM NÀY ĐỂ PROFILE VIEWMODEL KHÔNG BỊ LỖI
+    fun getDocumentsByAuthor(authorId: String): Flow<List<Document>>
+
+    suspend fun deleteDocument(documentId: String): Result<Unit>
 }

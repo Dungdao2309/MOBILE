@@ -1,6 +1,5 @@
 package com.example.stushare.features.feature_search.ui.search
 
-import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,16 +20,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource // ⭐️ QUAN TRỌNG: Import cái này
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.stushare.R // ⭐️ QUAN TRỌNG: Import R của project
 import com.example.stushare.features.feature_search.ui.components.SearchTagChip
-import com.example.stushare.ui.theme.LightGreen
 import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -40,14 +41,23 @@ fun SearchScreen(
     onSearchSubmit: (String) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
-    // Lấy state từ ViewModel
     val currentQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val recentSearches by viewModel.recentSearchesState.collectAsStateWithLifecycle()
 
     val keyboardController = LocalSoftwareKeyboardController.current
-    val suggestions = remember { listOf("Pháp luật đại cương", "Công nghệ phần mềm", "Khoa CNTT", "#dethi") }
 
-    // Lắng nghe sự kiện điều hướng khi nhấn Enter hoặc chọn từ lịch sử
+    // List gợi ý (Đã dùng stringResource -> OK)
+    val suggestions = listOf(
+        stringResource(R.string.sugg_law),
+        stringResource(R.string.sugg_se),
+        stringResource(R.string.sugg_it),
+        stringResource(R.string.sugg_exam)
+    )
+
+    // Màu động (Đã OK)
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val contentColor = MaterialTheme.colorScheme.onBackground
+
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { query ->
             onSearchSubmit(query)
@@ -57,15 +67,15 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(backgroundColor)
             .statusBarsPadding()
     ) {
-        // 1. Header chứa thanh tìm kiếm
+        // 1. Header
         SearchHeader(
             query = currentQuery,
             onQueryChange = viewModel::onQueryChanged,
             onBackClick = onBackClick,
-            onClearClick = { viewModel.onQueryChanged("") }, // Xóa text
+            onClearClick = { viewModel.onQueryChanged("") },
             onSearch = {
                 keyboardController?.hide()
                 if (currentQuery.isNotBlank()) {
@@ -74,17 +84,17 @@ fun SearchScreen(
             }
         )
 
-        // 2. Nội dung chính (Lịch sử & Gợi ý)
+        // 2. Nội dung chính
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color.White)
+                .background(backgroundColor)
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(20.dp) // Padding thoáng đãng
+                contentPadding = PaddingValues(20.dp)
             ) {
                 // Section: Lịch sử tìm kiếm
                 if (recentSearches.isNotEmpty()) {
@@ -94,20 +104,25 @@ fun SearchScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // ⭐️ SỬA 1: Thay "Tìm kiếm gần đây" bằng Resource
                             Text(
-                                text = "Tìm kiếm gần đây",
+                                text = stringResource(R.string.search_recent),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Black
+                                color = contentColor
                             )
                             TextButton(onClick = { viewModel.clearRecentSearches() }) {
-                                Text("Xóa tất cả", color = Color.Red, style = MaterialTheme.typography.bodySmall)
+                                // ⭐️ SỬA 2: Thay "Xóa tất cả" bằng Resource
+                                Text(
+                                    text = stringResource(R.string.clear_all),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    // Danh sách lịch sử (Vertical List)
                     items(recentSearches) { search ->
                         RecentSearchItem(
                             text = search,
@@ -121,22 +136,22 @@ fun SearchScreen(
                     item {
                         Divider(
                             modifier = Modifier.padding(vertical = 24.dp),
-                            color = Color.LightGray.copy(alpha = 0.3f)
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
                     }
                 }
 
-                // Section: Gợi ý (Chips)
+                // Section: Gợi ý
                 item {
+                    // ⭐️ SỬA 3: Thay "Gợi ý cho bạn" bằng Resource
                     Text(
-                        text = "Gợi ý cho bạn",
+                        text = stringResource(R.string.search_suggestion),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = contentColor,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    // FlowRow tự động xuống dòng khi hết chỗ
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -165,6 +180,9 @@ private fun SearchHeader(
     onClearClick: () -> Unit,
     onSearch: () -> Unit
 ) {
+    val inputBackgroundColor = MaterialTheme.colorScheme.surface
+    val inputTextColor = MaterialTheme.colorScheme.onSurface
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,12 +195,13 @@ private fun SearchHeader(
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay về",
+                    contentDescription = stringResource(R.string.cancel), // Sửa description
                     tint = Color.White
                 )
             }
+            // ⭐️ SỬA 4: Thay tiêu đề "Tìm kiếm" bằng Resource
             Text(
-                text = "Tìm kiếm",
+                text = stringResource(R.string.search_title),
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -192,23 +211,30 @@ private fun SearchHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Thanh tìm kiếm (Pill Shape)
+        // Thanh tìm kiếm
         TextField(
             value = query,
             onValueChange = onQueryChange,
             placeholder = {
-                Text("Nhập tên tài liệu, môn học...", color = Color.Gray, fontSize = 14.sp)
+                // ⭐️ SỬA 5: Thay "Nhập tên tài liệu..." bằng Resource
+                Text(
+                    text = stringResource(R.string.search_hint),
+                    color = inputTextColor.copy(alpha = 0.6f),
+                    fontSize = 14.sp
+                )
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
-                .clip(CircleShape), // Bo tròn hoàn toàn (Pill shape)
+                .clip(CircleShape),
             shape = CircleShape,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = LightGreen,     // Nền nhạt khi focus
-                unfocusedContainerColor = LightGreen,   // Nền nhạt khi không focus
-                disabledContainerColor = LightGreen,
-                focusedIndicatorColor = Color.Transparent, // Ẩn gạch chân
+                focusedContainerColor = inputBackgroundColor,
+                unfocusedContainerColor = inputBackgroundColor,
+                disabledContainerColor = inputBackgroundColor,
+                focusedTextColor = inputTextColor,
+                unfocusedTextColor = inputTextColor,
+                focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 cursorColor = PrimaryGreen
             ),
@@ -216,13 +242,12 @@ private fun SearchHeader(
                 Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryGreen)
             },
             trailingIcon = {
-                // Chỉ hiện nút Xóa khi có text
                 if (query.isNotEmpty()) {
                     IconButton(onClick = onClearClick) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Xóa",
-                            tint = Color.Gray,
+                            contentDescription = stringResource(R.string.delete),
+                            tint = inputTextColor.copy(alpha = 0.6f),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -235,43 +260,38 @@ private fun SearchHeader(
     }
 }
 
+// ... (Hàm RecentSearchItem giữ nguyên vì đã chuẩn) ...
 @Composable
-private fun RecentSearchItem(
-    text: String,
-    onClick: () -> Unit
-) {
+private fun RecentSearchItem(text: String, onClick: () -> Unit) {
+    // ... code giữ nguyên ...
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val iconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp), // Tăng vùng chạm (Thumb Zone friendly)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon đồng hồ biểu thị lịch sử
         Icon(
             imageVector = Icons.Default.History,
             contentDescription = null,
-            tint = Color.LightGray,
+            tint = iconColor,
             modifier = Modifier.size(22.dp)
         )
-
         Spacer(modifier = Modifier.width(16.dp))
-
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF333333),
+            color = textColor,
             modifier = Modifier.weight(1f)
         )
-
-        // Icon mũi tên chéo để gợi ý điền nhanh (Visual Cue)
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
-            tint = Color.LightGray,
-            modifier = Modifier
-                .size(18.dp)
-                .rotate(-45f)
+            tint = iconColor,
+            modifier = Modifier.size(18.dp).rotate(-45f)
         )
     }
 }

@@ -1,4 +1,4 @@
-package com.example.stushare.features.feature_profile.ui
+package com.example.stushare.features.feature_profile.ui.legal
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,15 +13,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// ⭐️ SỬA LẠI IMPORT CHUẨN:
+// ⭐️ Import đúng Resource và Theme của dự án chính
 import com.example.stushare.R
 import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TermsOfUseScreen(
+fun PrivacyPolicyScreen(
     onBackClick: () -> Unit
 ) {
+    // Màu động từ Theme
     val backgroundColor = MaterialTheme.colorScheme.background
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
@@ -29,9 +30,8 @@ fun TermsOfUseScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    // ⭐️ SỬA LẠI: Thêm R.string.
                     Text(
-                        text = stringResource(R.string.terms_header),
+                        text = stringResource(R.string.privacy_header),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -46,6 +46,7 @@ fun TermsOfUseScreen(
                         )
                     }
                 },
+                // ⭐️ SỬA: Dùng PrimaryGreen
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryGreen)
             )
         },
@@ -55,12 +56,11 @@ fun TermsOfUseScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()) // Cho phép cuộn nội dung dài
                 .padding(16.dp)
         ) {
-            // ⭐️ SỬA LẠI: Thêm R.string.
             Text(
-                text = stringResource(R.string.terms_content),
+                text = stringResource(R.string.privacy_content),
                 color = onSurfaceColor,
                 fontSize = 16.sp,
                 lineHeight = 24.sp

@@ -1,4 +1,4 @@
-package com.example.stushare.features.feature_profile.ui
+package com.example.stushare.features.feature_profile.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

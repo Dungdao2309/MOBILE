@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stushare.R
-import com.example.stushare.ui.theme.PrimaryGreen // Dùng đúng màu chuẩn của App
+import com.example.stushare.ui.theme.PrimaryGreen
 
 @Composable
 fun UploadScreen(
@@ -49,13 +49,15 @@ fun UploadScreen(
     ) { uri: Uri? ->
         uri?.let {
             selectedUri = it
-            // Cấp quyền đọc URI
+            // Cấp quyền đọc URI lâu dài
             try {
                 context.contentResolver.takePersistableUriPermission(
                     it,
                     android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
-            } catch (e: Exception) { /* Ignore */ }
+            } catch (e: Exception) {
+                // Log lỗi nếu cần, nhưng thường thì vẫn đọc được trong session hiện tại
+            }
 
             val cursor = context.contentResolver.query(it, null, null, null, null)
             cursor?.use { c ->
@@ -76,7 +78,7 @@ fun UploadScreen(
             when (result) {
                 is UploadViewModel.UploadResult.Success -> {
                     Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
-                    onBackClick() // Quay lại sau khi thành công
+                    onBackClick()
                 }
                 is UploadViewModel.UploadResult.Error -> {
                     Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
@@ -89,7 +91,7 @@ fun UploadScreen(
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         ) {
-            // --- HEADER (Đồng bộ với Home) ---
+            // --- HEADER ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -119,14 +121,13 @@ fun UploadScreen(
             Card(
                 modifier = Modifier
                     .padding(16.dp)
-                    .offset(y = (-20).dp), // Đẩy nhẹ lên đè lên Header
+                    .offset(y = (-20).dp),
                 elevation = CardDefaults.cardElevation(4.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
 
-                    // Khu vực hiển thị file đã chọn
                     Text("Tệp đính kèm", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -151,7 +152,11 @@ fun UploadScreen(
 
                     Button(
                         onClick = {
-                            filePickerLauncher.launch(arrayOf("application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                            filePickerLauncher.launch(arrayOf(
+                                "application/pdf",
+                                "application/msword",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            ))
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                         shape = RoundedCornerShape(10.dp),
@@ -162,7 +167,7 @@ fun UploadScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Input Tiêu đề
+                    // Input Title
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
@@ -177,7 +182,7 @@ fun UploadScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Input Mô tả
+                    // Input Description
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
@@ -194,11 +199,13 @@ fun UploadScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // Nút Upload
+                    // Button Upload
                     Button(
                         onClick = {
                             if (selectedUri != null && title.isNotEmpty()) {
-                                viewModel.handleUploadClick(title, description, selectedUri)
+                                // ⭐️ CẬP NHẬT: Lấy mimeType thực tế và truyền vào ViewModel
+                                val mimeType = context.contentResolver.getType(selectedUri!!) ?: "application/octet-stream"
+                                viewModel.handleUploadClick(title, description, selectedUri, mimeType)
                             } else {
                                 Toast.makeText(context, "Vui lòng chọn file và nhập tiêu đề", Toast.LENGTH_SHORT).show()
                             }

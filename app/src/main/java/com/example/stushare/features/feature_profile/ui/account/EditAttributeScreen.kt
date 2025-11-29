@@ -1,4 +1,4 @@
-package com.example.stushare.features.feature_profile.ui
+package com.example.stushare.features.feature_profile.ui.account
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*

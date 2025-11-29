@@ -1,4 +1,4 @@
-package com.example.stushare.features.feature_profile.ui
+package com.example.stushare.features.feature_profile.ui.model
 
 data class DocItem(
     val documentId: String,

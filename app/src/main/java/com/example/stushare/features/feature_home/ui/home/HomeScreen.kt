@@ -57,15 +57,13 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Xử lý thông báo lỗi
     LaunchedEffect(uiState.errorMessage) {
         if (uiState.errorMessage != null && uiState.newDocuments.isNotEmpty()) {
-            snackbarHostState.showSnackbar(message = uiState.errorMessage ?: "Đã xảy ra lỗi")
+            snackbarHostState.showSnackbar(message = uiState.errorMessage ?: "Error")
             viewModel.clearError()
         }
     }
 
-    // Xác định số cột dựa trên kích thước màn hình
     val columns = when (windowSizeClass.widthSizeClass) {
         WindowWidthSizeClass.Compact -> 1
         WindowWidthSizeClass.Medium -> 2
@@ -77,15 +75,19 @@ fun HomeScreen(
         onRefresh = { viewModel.refreshData() }
     )
 
+    // Màu nền chính của App
+    val backgroundColor = MaterialTheme.colorScheme.background
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = backgroundColor, // ⭐️ FIX: Nền theo Theme
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onCreateRequestClick,
                 containerColor = PrimaryGreen,
                 contentColor = Color.White
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Tạo yêu cầu")
+                Icon(Icons.Filled.Add, contentDescription = null)
             }
         }
     ) { paddingValues ->
@@ -96,9 +98,7 @@ fun HomeScreen(
                 .pullRefresh(swipeRefreshState)
         ) {
             if (uiState.isLoading && uiState.newDocuments.isEmpty()) {
-                // Hiển thị khung xương khi đang tải lần đầu
-                // Lưu ý: Đảm bảo bạn đã có Composable HomeScreenSkeleton trong project
-                HomeScreenSkeleton(columns)
+                // HomeScreenSkeleton(columns) // Bỏ comment khi có file Skeleton
             } else {
                 HomeContent(
                     uiState = uiState,
@@ -110,7 +110,6 @@ fun HomeScreen(
                     onNotificationClick = onNotificationClick
                 )
             }
-            // Chỉ báo loading khi kéo xuống
             PullRefreshIndicator(
                 refreshing = uiState.isRefreshing,
                 state = swipeRefreshState,
@@ -142,10 +141,9 @@ private fun HomeContent(
             )
         }
 
-        // Phần: Tài liệu mới tải lên
         if (uiState.newDocuments.isNotEmpty()) {
             item {
-                // Lưu ý: Đảm bảo bạn đã có Composable DocumentSectionHeader
+                // ⭐️ FIX: Dùng stringResource
                 DocumentSectionHeader(
                     title = stringResource(R.string.section_new_uploads),
                     onViewAllClick = { onViewAllClick("new_uploads") }
@@ -157,7 +155,6 @@ private fun HomeContent(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(uiState.newDocuments) { doc ->
-                        // --- ĐÃ SỬA LỖI TẠI ĐÂY ---
                         DocumentCard(
                             document = doc,
                             onClick = { onDocumentClick(doc.id.toString()) }
@@ -166,8 +163,6 @@ private fun HomeContent(
                 }
             }
         }
-
-        // Bạn có thể thêm các section khác ở đây (ví dụ: Tài liệu phổ biến...)
     }
 }
 
@@ -190,7 +185,7 @@ fun HomeHeaderSection(
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = avatarUrl,
-                contentDescription = "Avatar",
+                contentDescription = null,
                 modifier = Modifier
                     .size(50.dp)
                     .clip(CircleShape)
@@ -199,7 +194,12 @@ fun HomeHeaderSection(
             )
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Xin chào,", color = Color.White, fontSize = 14.sp)
+                // ⭐️ FIX: Dùng stringResource
+                Text(
+                    text = stringResource(R.string.home_greeting),
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
                 Text(
                     text = userName,
                     color = Color.White,
@@ -209,20 +209,18 @@ fun HomeHeaderSection(
             }
             Spacer(Modifier.weight(1f))
 
-            // 3 Nút chức năng trên Header
             IconButton(onClick = onLeaderboardClick) {
-                Icon(Icons.Default.EmojiEvents, contentDescription = "Bảng xếp hạng", tint = Color.White)
+                Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color.White)
             }
             IconButton(onClick = onNotificationClick) {
-                Icon(Icons.Default.Notifications, contentDescription = "Thông báo", tint = Color.White)
+                Icon(Icons.Default.Notifications, contentDescription = null, tint = Color.White)
             }
             IconButton(onClick = onUploadClick) {
-                Icon(Icons.Default.CloudUpload, contentDescription = "Tải lên", tint = Color.White)
+                Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color.White)
             }
         }
         Spacer(Modifier.height(16.dp))
 
-        // Thanh tìm kiếm
         Surface(
             onClick = onSearchClick,
             modifier = Modifier
@@ -235,12 +233,13 @@ fun HomeHeaderSection(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // ⭐️ FIX: Dùng stringResource
                 Text(
-                    text = "Tìm kiếm tài liệu...",
-                    color = Color.Gray,
+                    text = stringResource(R.string.home_search_hint),
+                    color = Color.White.copy(alpha = 0.8f), // Chữ trắng mờ trên nền xanh nhạt cho đẹp
                     modifier = Modifier.weight(1f)
                 )
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray)
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
             }
         }
     }

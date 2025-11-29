@@ -1,73 +1,89 @@
 package com.example.stushare
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Density // Import Density để dùng constructor bên dưới
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.LocaleListCompat
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.stushare.core.data.repository.SettingsRepository
 import com.example.stushare.core.navigation.NavRoute
 import com.example.stushare.ui.theme.PrimaryGreen
 import com.example.stushare.ui.theme.StuShareTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
-            StuShareTheme {
+
+            // --- 1. Lắng nghe các cài đặt từ DataStore ---
+            val isDarkTheme by settingsRepository.isDarkTheme
+                .collectAsState(initial = isSystemInDarkTheme())
+
+            val fontScale by settingsRepository.fontScale
+                .collectAsState(initial = 1.0f)
+
+            val languageCode by settingsRepository.languageCode
+                .collectAsState(initial = "vi")
+
+            // --- 2. Đồng bộ Ngôn ngữ hệ thống ---
+            LaunchedEffect(languageCode) {
+                val currentLocales = AppCompatDelegate.getApplicationLocales()
+                val newLocale = LocaleListCompat.forLanguageTags(languageCode)
+
+                // Chỉ set lại nếu ngôn ngữ thực sự thay đổi để tránh vòng lặp
+                if (currentLocales.toLanguageTags() != languageCode) {
+                    AppCompatDelegate.setApplicationLocales(newLocale)
+                }
+            }
+
+            // --- 3. Áp dụng Theme ---
+            StuShareTheme(
+                darkTheme = isDarkTheme,
+                fontScale = fontScale
+            ) {
                 MainAppScreen(windowSizeClass = windowSizeClass)
             }
         }
@@ -80,14 +96,14 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // Xác định các màn hình sẽ hiển thị BottomBar
+    // Danh sách các màn hình sẽ hiển thị BottomBar
     val showBottomBar = listOf(
         NavRoute.Home,
         NavRoute.Search,
         NavRoute.Notification,
         NavRoute.Profile,
-        NavRoute.RequestList, // Vẫn giữ lại nếu bạn cần điều hướng đến đây từ nơi khác
-        NavRoute.Upload       // Có thể hiện hoặc ẩn ở màn Upload tùy ý
+        NavRoute.RequestList,
+        NavRoute.Upload
     ).any { route ->
         currentDestination?.hasRoute(route::class) == true
     }
@@ -95,12 +111,16 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                // Sử dụng Component BottomNavBar tùy chỉnh ở bên dưới
-                BottomNavBar(navController = navController)
+                // ⭐️ KỸ THUẬT: Cố định fontScale = 1.0 cho BottomBar
+                val currentDensity = LocalDensity.current
+                CompositionLocalProvider(
+                    LocalDensity provides Density(density = currentDensity.density, fontScale = 1.0f)
+                ) {
+                    BottomNavBar(navController = navController)
+                }
             }
         }
     ) { innerPadding ->
-        // Sử dụng Box để padding bottom không làm che nội dung do nút nổi
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -123,31 +143,29 @@ fun BottomNavBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // Định nghĩa các item bên Trái và Phải nút Upload
+    // Sử dụng stringResource cho Đa ngôn ngữ
     val leftItems = listOf(
-        NavigationItem("Trang chủ", Icons.Filled.Home, Icons.Outlined.Home, NavRoute.Home),
-        NavigationItem("Tìm kiếm", Icons.Filled.Search, Icons.Outlined.Search, NavRoute.Search)
+        NavigationItem(stringResource(R.string.nav_home), Icons.Filled.Home, Icons.Outlined.Home, NavRoute.Home),
+        NavigationItem(stringResource(R.string.nav_search), Icons.Filled.Search, Icons.Outlined.Search, NavRoute.Search)
     )
 
     val rightItems = listOf(
-        // Thay RequestList bằng Notification để giống thiết kế cũ
-        NavigationItem("Thông báo", Icons.Filled.Notifications, Icons.Outlined.Notifications, NavRoute.Notification),
-        NavigationItem("Cá nhân", Icons.Filled.Person, Icons.Outlined.Person, NavRoute.Profile)
+        NavigationItem(stringResource(R.string.notifications), Icons.Filled.Notifications, Icons.Outlined.Notifications, NavRoute.Notification),
+        NavigationItem(stringResource(R.string.nav_profile), Icons.Filled.Person, Icons.Outlined.Person, NavRoute.Profile)
     )
 
-    // Box tổng chứa cả thanh bar và nút nổi
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp), // Tăng chiều cao để chứa phần nút nổi lên
+            .height(100.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // 1. Phần nền thanh Bar (Màu xanh, bo góc trên)
+        // Nền thanh Bar
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp) // Chiều cao chuẩn của BottomBar
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)), // Bo góc
+                .height(64.dp)
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
             color = PrimaryGreen,
             shadowElevation = 10.dp
         ) {
@@ -156,7 +174,7 @@ fun BottomNavBar(navController: NavController) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Nhóm icon bên trái
+                // Trái
                 Row(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -170,10 +188,10 @@ fun BottomNavBar(navController: NavController) {
                     }
                 }
 
-                // Khoảng trống ở giữa cho nút Upload
+                // Khoảng trống giữa (cho nút Upload)
                 Spacer(modifier = Modifier.size(60.dp))
 
-                // Nhóm icon bên phải
+                // Phải
                 Row(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -189,19 +207,18 @@ fun BottomNavBar(navController: NavController) {
             }
         }
 
-        // 2. Nút Upload Nổi (Floating Button) ở giữa
+        // Nút Upload Nổi
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter) // Căn lên đỉnh của Box cha
-                .offset(y = 10.dp) // Đẩy xuống một chút để khớp vị trí đẹp
-                .size(64.dp) // Kích thước vòng ngoài (viền trắng)
+                .align(Alignment.TopCenter)
+                .offset(y = 10.dp)
+                .size(64.dp)
                 .clip(CircleShape)
-                .background(Color.White) // Viền trắng bao quanh
+                .background(Color.White)
                 .clickable { navigateSafe(navController, NavRoute.Upload) }
                 .shadow(8.dp, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            // Vòng tròn xanh bên trong
             Box(
                 modifier = Modifier
                     .size(54.dp)
@@ -211,7 +228,7 @@ fun BottomNavBar(navController: NavController) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Upload",
+                    contentDescription = stringResource(R.string.upload_header),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
@@ -220,7 +237,6 @@ fun BottomNavBar(navController: NavController) {
     }
 }
 
-// Component hiển thị từng Item (Icon + Text)
 @Composable
 fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit) {
     Column(
@@ -229,14 +245,13 @@ fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit
         modifier = Modifier
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null // Tắt hiệu ứng ripple mặc định để đẹp hơn
+                indication = null
             ) { onClick() }
             .padding(8.dp)
     ) {
         Icon(
             imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
             contentDescription = item.title,
-            // Nếu chọn: Màu trắng sáng. Không chọn: Màu trắng mờ
             tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
             modifier = Modifier.size(26.dp)
         )
@@ -251,7 +266,6 @@ fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit
     }
 }
 
-// Hàm tiện ích để điều hướng an toàn
 fun navigateSafe(navController: NavController, route: NavRoute) {
     navController.navigate(route) {
         popUpTo(navController.graph.findStartDestination().id) {
@@ -262,7 +276,6 @@ fun navigateSafe(navController: NavController, route: NavRoute) {
     }
 }
 
-// Data class cho item
 data class NavigationItem(
     val title: String,
     val selectedIcon: ImageVector,

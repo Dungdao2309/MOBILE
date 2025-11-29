@@ -14,15 +14,12 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UploadViewModel @Inject constructor(
-    // Inject Repository đã cấu hình (tự động có Firebase & Room bên trong)
     private val documentRepository: DocumentRepository
 ) : ViewModel() {
 
-    // Trạng thái loading
     private val _isUploading = MutableStateFlow(false)
     val isUploading = _isUploading.asStateFlow()
 
-    // Sự kiện gửi kết quả về UI
     private val _uploadEvent = MutableSharedFlow<UploadResult>()
     val uploadEvent = _uploadEvent.asSharedFlow()
 
@@ -31,9 +28,8 @@ class UploadViewModel @Inject constructor(
         data class Error(val message: String) : UploadResult()
     }
 
-    // ⭐️ QUAN TRỌNG: Thêm tham số fileUri
-    fun handleUploadClick(title: String, description: String, fileUri: Uri?) {
-        // 1. Kiểm tra đầu vào
+    // ⭐️ CẬP NHẬT: Thêm tham số mimeType
+    fun handleUploadClick(title: String, description: String, fileUri: Uri?, mimeType: String) {
         if (fileUri == null) {
             viewModelScope.launch {
                 _uploadEvent.emit(UploadResult.Error("Vui lòng chọn file tài liệu!"))
@@ -51,12 +47,10 @@ class UploadViewModel @Inject constructor(
         viewModelScope.launch {
             _isUploading.value = true
             try {
-                // 2. Gọi Repository để xử lý (Upload File -> Lấy Link -> Lưu Firestore -> Lưu Room)
-                // Hàm này trả về Result<String> như ta đã định nghĩa
-                val result = documentRepository.uploadDocument(title, description, fileUri)
+                // Truyền mimeType xuống Repository
+                val result = documentRepository.uploadDocument(title, description, fileUri, mimeType)
 
                 if (result.isSuccess) {
-                    // TODO: Nếu muốn tạo Notification, hãy Inject NotificationRepository vào đây và gọi hàm
                     _uploadEvent.emit(UploadResult.Success("Upload thành công!"))
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Lỗi không xác định"
