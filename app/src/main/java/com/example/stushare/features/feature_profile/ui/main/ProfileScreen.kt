@@ -1,9 +1,13 @@
 package com.example.stushare.features.feature_profile.ui.main
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,8 +24,10 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -30,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.stushare.R
 import com.example.stushare.features.feature_profile.ui.model.DocItem
 import com.example.stushare.features.feature_profile.ui.model.UserProfile
@@ -43,13 +50,33 @@ fun ProfileScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToRegister: () -> Unit
 ) {
-    // Lấy dữ liệu từ ViewModel
+    val context = LocalContext.current
+
+    // 1. Lấy dữ liệu từ ViewModel
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val publishedDocs by viewModel.publishedDocuments.collectAsStateWithLifecycle()
     val savedDocs by viewModel.savedDocuments.collectAsStateWithLifecycle()
     val downloadedDocs by viewModel.downloadedDocuments.collectAsStateWithLifecycle()
+    val isUploadingAvatar by viewModel.isUploadingAvatar.collectAsStateWithLifecycle()
 
-    // Màu nền chính của màn hình (Trắng hoặc Đen)
+    // 2. Lắng nghe thông báo (Toast) từ ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.updateMessage.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 3. Khởi tạo bộ chọn ảnh (Photo Picker)
+    val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                viewModel.uploadAvatar(uri)
+            }
+        }
+    )
+
+    // Màu nền chính của màn hình
     val backgroundColor = MaterialTheme.colorScheme.background
 
     Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
@@ -68,14 +95,32 @@ fun ProfileScreen(
                 downloadedDocs = downloadedDocs,
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToLeaderboard = onNavigateToLeaderboard,
-                onDeleteDoc = { docId -> viewModel.deletePublishedDocument(docId) }
+                onDeleteDoc = { docId -> viewModel.deletePublishedDocument(docId) },
+                // Sự kiện khi click vào Avatar -> Mở thư viện ảnh
+                onAvatarClick = {
+                    singlePhotoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
             )
+        }
+
+        // 4. Hiển thị Loading khi đang upload ảnh
+        if (isUploadingAvatar) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = PrimaryGreen)
+            }
         }
     }
 }
 
 // =================================================================
-// 1. GIAO DIỆN KHI CHƯA ĐĂNG NHẬP
+// 1. GIAO DIỆN KHI CHƯA ĐĂNG NHẬP (Giữ nguyên)
 // =================================================================
 @Composable
 fun UnauthenticatedProfileContent(
@@ -93,7 +138,6 @@ fun UnauthenticatedProfileContent(
             imageVector = Icons.Default.AccountCircle,
             contentDescription = null,
             modifier = Modifier.size(120.dp),
-            // ⭐️ FIX: Màu icon mờ theo theme
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
         )
 
@@ -103,7 +147,6 @@ fun UnauthenticatedProfileContent(
             text = "Bạn chưa đăng nhập",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            // ⭐️ FIX: Màu chữ theo theme
             color = MaterialTheme.colorScheme.onBackground
         )
 
@@ -141,7 +184,7 @@ fun UnauthenticatedProfileContent(
 }
 
 // =================================================================
-// 2. GIAO DIỆN KHI ĐÃ ĐĂNG NHẬP
+// 2. GIAO DIỆN KHI ĐÃ ĐĂNG NHẬP (Cập nhật truyền sự kiện Avatar)
 // =================================================================
 @Composable
 fun AuthenticatedProfileContent(
@@ -151,7 +194,8 @@ fun AuthenticatedProfileContent(
     downloadedDocs: List<DocItem>,
     onNavigateToSettings: () -> Unit,
     onNavigateToLeaderboard: () -> Unit,
-    onDeleteDoc: (String) -> Unit
+    onDeleteDoc: (String) -> Unit,
+    onAvatarClick: () -> Unit // Tham số mới
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
@@ -164,15 +208,16 @@ fun AuthenticatedProfileContent(
     Column(modifier = Modifier.fillMaxSize()) {
         val userName = stringResource(R.string.profile_hello, userProfile.fullName)
 
-        // Header Profile
+        // Header Profile (Truyền Avatar URL và sự kiện Click)
         ProfileHeader(
             userName = userName,
             subText = stringResource(R.string.profile_dept),
+            avatarUrl = userProfile.avatarUrl,
             onSettingsClick = onNavigateToSettings,
-            onLeaderboardClick = onNavigateToLeaderboard
+            onLeaderboardClick = onNavigateToLeaderboard,
+            onAvatarClick = onAvatarClick
         )
 
-        // ⭐️ FIX: TabRow dùng màu Surface (tự động tối khi Dark Mode)
         TabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = MaterialTheme.colorScheme.surface,
@@ -193,8 +238,6 @@ fun AuthenticatedProfileContent(
                         Text(
                             text = title,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            // ⭐️ FIX: Logic màu chữ Tab
-                            // Chọn -> Xanh. Không chọn -> Màu chữ theme (Trắng/Đen)
                             color = if (isSelected) PrimaryGreen else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -213,7 +256,6 @@ fun AuthenticatedProfileContent(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = stringResource(R.string.profile_empty_list),
-                    // ⭐️ FIX: Màu chữ thông báo trống
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 16.sp
                 )
@@ -234,18 +276,19 @@ fun AuthenticatedProfileContent(
 }
 
 // =================================================================
-// 3. CÁC COMPONENT PHỤ
+// 3. CÁC COMPONENT PHỤ (Cập nhật ProfileHeader dùng Coil)
 // =================================================================
 
 @Composable
 fun ProfileHeader(
     userName: String,
     subText: String,
+    avatarUrl: String?,
     onSettingsClick: () -> Unit,
-    onLeaderboardClick: () -> Unit
+    onLeaderboardClick: () -> Unit,
+    onAvatarClick: () -> Unit
 ) {
     Card(
-        // ⭐️ FIX: Màu nền Card theo theme
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(0.dp),
         elevation = CardDefaults.cardElevation(2.dp),
@@ -255,18 +298,36 @@ fun ProfileHeader(
             modifier = Modifier.fillMaxWidth().padding(16.dp).padding(top = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
-            Image(
-                painter = painterResource(id = R.drawable.ic_person),
-                contentDescription = null,
-                // ⭐️ FIX: Màu icon avatar
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)),
+            // === AVATAR SECTION ===
+            Box(
                 modifier = Modifier
                     .size(64.dp)
-                    // ⭐️ FIX: Nền tròn sau avatar
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                    .padding(12.dp)
-            )
+                    .clip(CircleShape)
+                    .clickable { onAvatarClick() } // Cho phép bấm vào để đổi ảnh
+            ) {
+                if (avatarUrl != null) {
+                    // Nếu có URL ảnh -> Dùng Coil load ảnh
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    // Nếu chưa có ảnh -> Dùng icon mặc định
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_person),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(12.dp)
+                    )
+                }
+            }
+            // ======================
+
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
@@ -274,7 +335,6 @@ fun ProfileHeader(
                     text = userName,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    // ⭐️ FIX: Màu tên user
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -284,16 +344,16 @@ fun ProfileHeader(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Nút "Xem bảng xếp hạng" (Giữ màu cam làm điểm nhấn)
+                // Nút "Xem bảng xếp hạng"
                 Surface(
                     onClick = onLeaderboardClick,
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFF3E0), // Màu nền cam nhạt
+                    color = Color(0xFFFFF3E0),
                     modifier = Modifier.wrapContentWidth()
                 ) {
                     Text(
                         text = stringResource(R.string.profile_view_leaderboard),
-                        color = Color(0xFFFF9800), // Màu chữ cam đậm
+                        color = Color(0xFFFF9800),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -305,7 +365,6 @@ fun ProfileHeader(
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Settings",
-                    // ⭐️ FIX: Màu nút cài đặt
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
@@ -318,27 +377,22 @@ fun DocItemRow(item: DocItem, isDeletable: Boolean, onDelete: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Lấy màu từ theme
     val cardColor = MaterialTheme.colorScheme.surface
     val contentColor = MaterialTheme.colorScheme.onSurface
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         shape = RoundedCornerShape(12.dp),
-        // ⭐️ FIX: Màu nền Card tài liệu
         colors = CardDefaults.cardColors(containerColor = cardColor),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Icon tài liệu
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    // ⭐️ FIX: Màu nền ô vuông icon
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                // Thêm icon tài liệu vào đây cho đẹp
                 Icon(
                     imageVector = Icons.Default.Description,
                     contentDescription = null,
@@ -352,7 +406,6 @@ fun DocItemRow(item: DocItem, isDeletable: Boolean, onDelete: () -> Unit) {
                     text = item.docTitle,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    // ⭐️ FIX: Màu tên tài liệu
                     color = contentColor
                 )
                 Text(
@@ -373,7 +426,7 @@ fun DocItemRow(item: DocItem, isDeletable: Boolean, onDelete: () -> Unit) {
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
-                    modifier = Modifier.background(cardColor) // Đảm bảo menu cùng màu card
+                    modifier = Modifier.background(cardColor)
                 ) {
                     if (isDeletable) {
                         DropdownMenuItem(
@@ -381,7 +434,6 @@ fun DocItemRow(item: DocItem, isDeletable: Boolean, onDelete: () -> Unit) {
                             onClick = {
                                 onDelete()
                                 showMenu = false
-                                Toast.makeText(context, "Đã xóa", Toast.LENGTH_SHORT).show()
                             },
                             leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = contentColor) }
                         )

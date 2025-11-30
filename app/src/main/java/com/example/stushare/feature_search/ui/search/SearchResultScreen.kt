@@ -170,7 +170,7 @@ fun SearchResultScreen(
 
                         documents = state.results,
 
-                        onDocumentClick = onDocumentClick
+                        onDocumentClick = onDocumentClick as (String) -> Unit
 
                     )
 
@@ -280,8 +280,7 @@ private fun SearchResultList(
 
     documents: List<Document>,
 
-    onDocumentClick: (Long) -> Unit
-
+    onDocumentClick: (String) -> Unit
 ) {
 
 // (Hàm này giữ nguyên, không cần thay đổi)

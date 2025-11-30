@@ -28,8 +28,17 @@ class UploadViewModel @Inject constructor(
         data class Error(val message: String) : UploadResult()
     }
 
-    // ⭐️ CẬP NHẬT: Thêm tham số mimeType
-    fun handleUploadClick(title: String, description: String, fileUri: Uri?, mimeType: String) {
+    // 🔴 CẬP NHẬT: Thêm tham số coverUri (Ảnh bìa) và author (Tác giả)
+    fun handleUploadClick(
+        title: String,
+        description: String,
+        fileUri: Uri?,
+        mimeType: String,
+        // 👇 THÊM 2 THAM SỐ NÀY
+        coverUri: Uri?,
+        author: String
+    ) {
+        // 1. Kiểm tra File tài liệu
         if (fileUri == null) {
             viewModelScope.launch {
                 _uploadEvent.emit(UploadResult.Error("Vui lòng chọn file tài liệu!"))
@@ -37,6 +46,7 @@ class UploadViewModel @Inject constructor(
             return
         }
 
+        // 2. Kiểm tra Tiêu đề
         if (title.isBlank()) {
             viewModelScope.launch {
                 _uploadEvent.emit(UploadResult.Error("Vui lòng nhập tiêu đề!"))
@@ -44,11 +54,26 @@ class UploadViewModel @Inject constructor(
             return
         }
 
+        // 3. Kiểm tra Tên tác giả
+        if (author.isBlank()) {
+            viewModelScope.launch {
+                _uploadEvent.emit(UploadResult.Error("Vui lòng nhập tên tác giả!"))
+            }
+            return
+        }
+
         viewModelScope.launch {
             _isUploading.value = true
             try {
-                // Truyền mimeType xuống Repository
-                val result = documentRepository.uploadDocument(title, description, fileUri, mimeType)
+                // 🔴 GỌI HÀM UPLOAD MỚI (TRUYỀN ĐỦ 6 THAM SỐ)
+                val result = documentRepository.uploadDocument(
+                    title = title,
+                    description = description,
+                    fileUri = fileUri,
+                    mimeType = mimeType,
+                    coverUri = coverUri, // Truyền ảnh bìa
+                    author = author      // Truyền tên tác giả
+                )
 
                 if (result.isSuccess) {
                     _uploadEvent.emit(UploadResult.Success("Upload thành công!"))

@@ -10,8 +10,9 @@ import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
-import com.google.firebase.storage.FirebaseStorage // 👈 Import Storage
+import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -22,7 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
-    private val storage: FirebaseStorage // 👈 Inject thêm Storage để up ảnh
+    private val storage: FirebaseStorage
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -32,7 +33,6 @@ class ProfileViewModel @Inject constructor(
     val updateMessage = _updateMessage.asSharedFlow()
 
     // --- 2. Trạng thái Loading khi upload ảnh ---
-    // Để hiển thị vòng quay loading trên Avatar khi đang tải
     private val _isUploadingAvatar = MutableStateFlow(false)
     val isUploadingAvatar = _isUploadingAvatar.asStateFlow()
 
@@ -43,18 +43,23 @@ class ProfileViewModel @Inject constructor(
         }
         auth.addAuthStateListener(authStateListener)
         awaitClose { auth.removeAuthStateListener(authStateListener) }
-    }
+    }.flowOn(Dispatchers.IO) // Chạy trên background thread để tránh lag UI
 
     // --- 4. Dữ liệu User Profile ---
     val userProfile: StateFlow<UserProfile?> = authStateFlow
         .map { user ->
             if (user != null) {
-                user.reload().await() // Đảm bảo lấy dữ liệu mới nhất (Avatar, Name)
+                try {
+                    // Reload để đảm bảo lấy được avatar mới nhất sau khi upload
+                    user.reload().await()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 UserProfile(
                     id = user.uid,
                     fullName = user.displayName ?: user.email ?: "Sinh viên UTH",
                     email = user.email ?: "",
-                    // Lấy URL ảnh avatar (nếu có)
                     avatarUrl = user.photoUrl?.toString()
                 )
             } else {
@@ -63,16 +68,17 @@ class ProfileViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    // --- 5. Danh sách tài liệu đã đăng ---
+    // --- 5. Danh sách tài liệu ĐÃ ĐĂNG ---
     @OptIn(ExperimentalCoroutinesApi::class)
     val publishedDocuments: StateFlow<List<DocItem>> = authStateFlow
         .flatMapLatest { user ->
             if (user != null) {
+                // Lấy các bài post có authorId trùng với user hiện tại
                 documentRepository.getDocumentsByAuthor(user.uid)
                     .map { documents ->
                         documents.map { doc ->
                             DocItem(
-                                documentId = doc.id.toString(),
+                                documentId = doc.id.toString(), // Lưu ý: Cần đảm bảo ID này khớp logic xóa
                                 docTitle = doc.title,
                                 meta = "Đã đăng • ${doc.downloads} lượt tải"
                             )
@@ -84,14 +90,30 @@ class ProfileViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // --- 6. Danh sách tài liệu ĐÃ TẢI (Lấy từ Local DB) ---
+    // Hiển thị tất cả tài liệu đang có trong database máy (offline)
+    val downloadedDocuments: StateFlow<List<DocItem>> = documentRepository.getAllDocuments()
+        .map { documents ->
+            documents.map { doc ->
+                DocItem(
+                    documentId = doc.id.toString(),
+                    docTitle = doc.title,
+                    meta = "Đã lưu vào máy • ${doc.type.uppercase()}"
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- 7. Danh sách ĐÃ LƯU (Bookmark) ---
+    // Hiện tại chưa có bảng Bookmark, để trống chờ tính năng sau
     val savedDocuments: StateFlow<List<DocItem>> = MutableStateFlow(emptyList())
-    val downloadedDocuments: StateFlow<List<DocItem>> = MutableStateFlow(emptyList())
+
 
     // =========================================================================
     // CÁC HÀM XỬ LÝ LOGIC (ACTIONS)
     // =========================================================================
 
-    // ✅ 1. Upload Avatar (MỚI THÊM)
+    // ✅ 1. Upload Avatar
     fun uploadAvatar(uri: Uri) {
         val user = auth.currentUser ?: return
 
@@ -180,7 +202,7 @@ class ProfileViewModel @Inject constructor(
             }
     }
 
-    // ✅ 4. Cập nhật Email (Mới thêm cho đủ bộ)
+    // ✅ 4. Cập nhật Email
     fun updateEmail(currentPass: String, newEmail: String) {
         val user = auth.currentUser
         if (user == null || user.email == null) return

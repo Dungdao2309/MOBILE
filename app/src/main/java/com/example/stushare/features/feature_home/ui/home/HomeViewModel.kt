@@ -3,26 +3,28 @@ package com.example.stushare.features.feature_home.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stushare.core.data.models.DataFailureException
+import com.example.stushare.core.data.models.Document
+import com.example.stushare.core.data.repository.DocumentRepository
+import com.example.stushare.core.data.repository.SettingsRepository
 import com.example.stushare.core.domain.usecase.GetExamDocumentsUseCase
 import com.example.stushare.core.domain.usecase.GetNewDocumentsUseCase
-import com.example.stushare.core.data.repository.DocumentRepository
-import com.example.stushare.core.data.models.Document
-import com.example.stushare.core.data.repository.SettingsRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update // ⭐️ QUAN TRỌNG: Import update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import com.google.firebase.auth.FirebaseAuth
 
 data class HomeUiState(
-    val userName: String = "Tên Sinh Viên",
+    val userName: String = "Sinh Viên",
     val avatarUrl: String? = null,
     val newDocuments: List<Document> = emptyList(),
     val examDocuments: List<Document> = emptyList(),
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null
 )
@@ -36,78 +38,65 @@ class HomeViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    // State riêng cho loading/error để dễ quản lý
+    private val _isLoading = MutableStateFlow(false)
+    private val _errorMessage = MutableStateFlow<String?>(null)
+
+    // ⭐️ LOGIC MỚI: Dùng combine để gộp các luồng dữ liệu lại
+    // Khi Database thay đổi (Repository phát tín hiệu) -> UseCase phát -> combine nhận được -> UI update
+    val uiState: StateFlow<HomeUiState> = combine(
+        getNewDocumentsUseCase(),   // Luồng 1: Tài liệu mới
+        getExamDocumentsUseCase(),  // Luồng 2: Đề thi
+        _isLoading,                 // Luồng 3: Trạng thái loading
+        _errorMessage               // Luồng 4: Lỗi
+    ) { newDocs, examDocs, isLoading, error ->
+
+        // Lấy thông tin user (đơn giản hóa, có thể chuyển sang Flow nếu muốn realtime profile)
+        val currentUser = firebaseAuth.currentUser
+        val name = currentUser?.displayName ?: "Sinh Viên"
+        val avatar = currentUser?.photoUrl?.toString()
+
+        HomeUiState(
+            userName = name,
+            avatarUrl = avatar,
+            newDocuments = newDocs,
+            examDocuments = examDocs,
+            isLoading = isLoading,
+            errorMessage = error
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000), // Chỉ chạy khi UI hiển thị, tiết kiệm pin
+        initialValue = HomeUiState(isLoading = true)
+    )
 
     init {
-        loadUserProfile()
-        collectDocumentFlows()
+        // Tải dữ liệu ban đầu
         refreshData(isInitialLoad = true)
-    }
-
-    private fun loadUserProfile() {
-        val currentUser = firebaseAuth.currentUser
-        if (currentUser != null) {
-            // ⭐️ CẬP NHẬT AN TOÀN
-            _uiState.update { currentState ->
-                currentState.copy(
-                    userName = currentUser.displayName ?: "Tên Sinh Viên",
-                    avatarUrl = currentUser.photoUrl?.toString()
-                )
-            }
-        }
-    }
-
-    private fun collectDocumentFlows() {
-        viewModelScope.launch {
-            getNewDocumentsUseCase().collect { newDocs ->
-                // ⭐️ CẬP NHẬT AN TOÀN
-                _uiState.update { it.copy(newDocuments = newDocs) }
-            }
-        }
-
-        viewModelScope.launch {
-            getExamDocumentsUseCase().collect { examDocs ->
-                // ⭐️ CẬP NHẬT AN TOÀN
-                _uiState.update { it.copy(examDocuments = examDocs) }
-            }
-        }
     }
 
     fun refreshData(isInitialLoad: Boolean = false) {
         viewModelScope.launch {
+            _errorMessage.value = null
+            if (isInitialLoad) _isLoading.value = true
+
             try {
-                // ⭐️ CẬP NHẬT AN TOÀN: BẮT ĐẦU TẢI
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        isRefreshing = !isInitialLoad,
-                        isLoading = isInitialLoad,
-                        errorMessage = null
-                    )
-                }
-
+                // Gọi Repository để sync dữ liệu từ Cloud/API về Local DB
+                // Khi Local DB có dữ liệu mới, Flow ở trên (combine) sẽ tự chạy lại
                 repository.refreshDocumentsIfStale()
-
             } catch (e: Exception) {
                 e.printStackTrace()
-                val errorMessage = when (e) {
-                    is DataFailureException.NetworkError -> e.message ?: "Kiểm tra kết nối mạng."
-                    is DataFailureException.ApiError -> "Lỗi máy chủ (${e.code}). Vui lòng thử lại sau."
-                    else -> "Tải dữ liệu thất bại: Lỗi không xác định."
+                _errorMessage.value = when (e) {
+                    is DataFailureException.NetworkError -> "Vui lòng kiểm tra kết nối mạng."
+                    else -> "Không thể cập nhật dữ liệu mới nhất."
                 }
-                // ⭐️ CẬP NHẬT AN TOÀN: LỖI
-                _uiState.update { it.copy(errorMessage = errorMessage) }
             } finally {
-                // ⭐️ CẬP NHẬT AN TOÀN: KẾT THÚC
-                _uiState.update {
-                    it.copy(isRefreshing = false, isLoading = false)
-                }
+                _isLoading.value = false
             }
         }
     }
 
     fun clearError() {
-        // ⭐️ CẬP NHẬT AN TOÀN
-        _uiState.update { it.copy(errorMessage = null) }
+        _errorMessage.value = null
     }
 }

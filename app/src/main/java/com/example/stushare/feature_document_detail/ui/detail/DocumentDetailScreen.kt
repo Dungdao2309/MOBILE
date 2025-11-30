@@ -1,5 +1,10 @@
 package com.example.stushare.feature_document_detail.ui.detail
 
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,12 +16,13 @@ import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.* // Import đủ các hàm runtime
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,15 +41,15 @@ import com.google.firebase.auth.FirebaseAuth
 fun DocumentDetailScreen(
     documentId: String,
     onBackClick: () -> Unit,
-    onLoginRequired: () -> Unit, // Callback khi cần đăng nhập
+    onLoginRequired: () -> Unit,
     viewModel: DocumentDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Lấy trạng thái đăng nhập hiện tại
-    // Sử dụng remember để không phải gọi getInstance liên tục, nhưng cần cẩn thận nếu user logout/login mà không thoát màn hình
-    // Tuy nhiên với luồng navigation hiện tại (Login xong quay lại), màn hình sẽ được recompose nên vẫn ổn.
+    // ⭐️ Lấy Context để dùng cho DownloadManager
+    val context = LocalContext.current
+
     val currentUser = remember { FirebaseAuth.getInstance().currentUser }
     val isLoggedIn = currentUser != null
 
@@ -79,21 +85,23 @@ fun DocumentDetailScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            // Chỉ hiện BottomBar khi đã load xong dữ liệu
             if (uiState is DetailUiState.Success) {
                 val document = (uiState as DetailUiState.Success).document
 
                 BottomActionSection(
                     onDownloadClick = {
                         if (isLoggedIn) {
-                            viewModel.startDownload(document.imageUrl, document.title)
+                            // ⭐️ SỬA LOGIC TẠI ĐÂY:
+                            // 1. Gọi hàm downloadDocument trực tiếp
+                            // 2. Truyền document.fileUrl (thay vì imageUrl)
+                            downloadDocument(context, document.fileUrl, document.title)
                         } else {
                             onLoginRequired()
                         }
                     },
                     onCommentClick = {
                         if (isLoggedIn) {
-                            // TODO: Mở tính năng bình luận
+                            Toast.makeText(context, "Tính năng bình luận đang phát triển", Toast.LENGTH_SHORT).show()
                         } else {
                             onLoginRequired()
                         }
@@ -106,7 +114,7 @@ fun DocumentDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(paddingValues) // Scaffold tự tính toán khoảng trống cho BottomBar
+                .padding(paddingValues)
         ) {
             when (val state = uiState) {
                 is DetailUiState.Loading -> {
@@ -124,6 +132,37 @@ fun DocumentDetailScreen(
                 }
             }
         }
+    }
+}
+
+// ⭐️ HÀM XỬ LÝ TẢI FILE (Logic cốt lõi)
+fun downloadDocument(context: Context, url: String, title: String) {
+    if (url.isBlank()) {
+        Toast.makeText(context, "Lỗi: Tài liệu này chưa có link tải!", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    try {
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val uri = Uri.parse(url)
+
+        // Tạo tên file an toàn (thay thế khoảng trắng và ký tự lạ)
+        val safeFileName = "${title.replace("[^a-zA-Z0-9]".toRegex(), "_")}.pdf" // Mặc định đuôi .pdf hoặc lấy từ url
+
+        val request = DownloadManager.Request(uri)
+            .setTitle(title)
+            .setDescription("Đang tải tài liệu về máy...")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, safeFileName)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
+
+        downloadManager.enqueue(request)
+        Toast.makeText(context, "Đang bắt đầu tải: $title", Toast.LENGTH_SHORT).show()
+
+    } catch (e: Exception) {
+        e.printStackTrace()
+        Toast.makeText(context, "Không thể tải file: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }
 
@@ -190,7 +229,7 @@ fun DocumentDetailContent(document: Document) {
             )
             BadgeInfo(
                 icon = Icons.Default.ChatBubbleOutline,
-                text = "${document.downloads / 10} bình luận", // Demo data
+                text = "${document.downloads / 10} bình luận",
                 color = Color.Gray
             )
         }
@@ -210,7 +249,6 @@ fun DocumentDetailContent(document: Document) {
             content = "• Mã môn học: ${document.courseCode}\n• Loại tài liệu: ${document.type}\n• Định dạng: PDF"
         )
 
-        // CẢI TIẾN: Giảm Spacer xuống vì Scaffold padding đã xử lý việc che nội dung
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
@@ -270,7 +308,6 @@ fun BottomActionSection(onDownloadClick: () -> Unit, onCommentClick: () -> Unit)
         Row(
             modifier = Modifier
                 .padding(20.dp)
-                // Sử dụng navigationBarsPadding để tránh thanh điều hướng ảo của Android đè lên nút
                 .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
