@@ -28,47 +28,55 @@ fun DocumentCard(
     Card(
         onClick = onClick,
         modifier = modifier
-            .width(160.dp) // Tăng nhẹ chiều rộng để cân đối với padding mới
-            .wrapContentHeight(), // Chiều cao linh hoạt theo nội dung
-        shape = RoundedCornerShape(16.dp), // Bo góc lớn hơn (Modern UI)
+            .width(160.dp)
+            .wrapContentHeight(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White // Nền trắng sạch sẽ
+            // ✅ FIX 1: Dùng màu theo Theme thay vì Color.White
+            // Light Mode: Nó sẽ lấy màu Surface (thường là trắng hoặc xám rất nhạt)
+            // Dark Mode: Nó sẽ lấy màu xám đậm (VD: #1E1E1E) giúp mắt dễ chịu
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Shadow nhẹ tạo độ nổi
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp) // Tăng padding (Whitespace) để tạo cảm giác thoáng đãng
+                .padding(12.dp)
         ) {
-            // 1. Ảnh bìa (Vuông vức & Bo góc)
+            // 1. Ảnh bìa
             AsyncImage(
                 model = document.imageUrl,
                 contentDescription = document.title,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f) // Tỷ lệ 1:1
+                    .aspectRatio(1f)
                     .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Tiêu đề (Sử dụng Style mới: titleMedium)
+            // 2. Tiêu đề
             Text(
                 text = document.title,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.heightIn(min = 48.dp) // Cố định chiều cao 2 dòng để các thẻ thẳng hàng
+                modifier = Modifier.heightIn(min = 48.dp),
+                // ✅ Thêm dòng này để chắc chắn chữ màu trắng khi ở Dark Mode
+                // (Mặc định nó sẽ tự lấy onSurface, nhưng khai báo rõ càng tốt)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 3. Loại tài liệu (Màu xanh chủ đạo, bỏ chữ "Loại:" để đơn giản hóa)
+            // 3. Loại tài liệu
             Text(
                 text = document.type,
                 style = MaterialTheme.typography.bodyMedium,
+                // Lưu ý: PrimaryGreen cần đảm bảo đủ sáng để nhìn thấy trên nền đen.
+                // Nếu quá tối, hãy dùng MaterialTheme.colorScheme.primary
                 color = PrimaryGreen,
                 fontWeight = FontWeight.Medium
             )
@@ -87,21 +95,24 @@ fun DocumentCard(
                         imageVector = Icons.Filled.Star,
                         contentDescription = "Rating",
                         modifier = Modifier.size(16.dp),
-                        tint = Color(0xFFFFC107) // Màu vàng ngôi sao
+                        tint = Color(0xFFFFC107)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "%.1f".format(document.rating),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface // ✅ Đồng bộ màu chữ
                     )
                 }
 
-                // Lượt tải (Dùng label nhỏ, màu xám nhạt)
+                // Lượt tải
                 Text(
                     text = "${document.downloads} tải",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
+                    // ✅ FIX 2: Thay Color.Gray bằng onSurfaceVariant
+                    // Đây là màu ngữ nghĩa dành cho text phụ (secondary text)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

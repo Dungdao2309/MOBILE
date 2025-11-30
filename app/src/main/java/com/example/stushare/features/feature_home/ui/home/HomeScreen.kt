@@ -30,14 +30,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.stushare.R
 import com.example.stushare.features.feature_home.ui.components.DocumentCard
+import com.example.stushare.features.feature_home.ui.components.DocumentSectionHeader
 import com.example.stushare.ui.theme.LightGreen
 import com.example.stushare.ui.theme.PrimaryGreen
 
@@ -64,6 +63,7 @@ fun HomeScreen(
         }
     }
 
+    // Xác định số cột (Responsive)
     val columns = when (windowSizeClass.widthSizeClass) {
         WindowWidthSizeClass.Compact -> 1
         WindowWidthSizeClass.Medium -> 2
@@ -75,12 +75,12 @@ fun HomeScreen(
         onRefresh = { viewModel.refreshData() }
     )
 
-    // Màu nền chính của App
+    // Màu nền chính của App (Tự động thay đổi theo Theme Sáng/Tối)
     val backgroundColor = MaterialTheme.colorScheme.background
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = backgroundColor, // ⭐️ FIX: Nền theo Theme
+        containerColor = backgroundColor,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onCreateRequestClick,
@@ -98,7 +98,7 @@ fun HomeScreen(
                 .pullRefresh(swipeRefreshState)
         ) {
             if (uiState.isLoading && uiState.newDocuments.isEmpty()) {
-                // HomeScreenSkeleton(columns) // Bỏ comment khi có file Skeleton
+                // HomeScreenSkeleton(columns)
             } else {
                 HomeContent(
                     uiState = uiState,
@@ -143,7 +143,7 @@ private fun HomeContent(
 
         if (uiState.newDocuments.isNotEmpty()) {
             item {
-                // ⭐️ FIX: Dùng stringResource
+                // Header của Section (Đã tách file riêng)
                 DocumentSectionHeader(
                     title = stringResource(R.string.section_new_uploads),
                     onViewAllClick = { onViewAllClick("new_uploads") }
@@ -182,6 +182,7 @@ fun HomeHeaderSection(
             .background(PrimaryGreen)
             .padding(16.dp)
     ) {
+        // Phần thông tin user và icon
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = avatarUrl,
@@ -194,17 +195,17 @@ fun HomeHeaderSection(
             )
             Spacer(Modifier.width(12.dp))
             Column {
-                // ⭐️ FIX: Dùng stringResource
+                // ✅ UPDATE: Dùng Style bodyLarge thay vì set cứng fontSize
                 Text(
                     text = stringResource(R.string.home_greeting),
-                    color = Color.White,
-                    fontSize = 14.sp
+                    color = Color.White.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.bodyLarge
                 )
+                // ✅ UPDATE: Dùng Style headlineSmall cho tên user (To và rõ hơn)
                 Text(
                     text = userName,
                     color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineSmall
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -221,25 +222,32 @@ fun HomeHeaderSection(
         }
         Spacer(Modifier.height(16.dp))
 
+        // Phần thanh tìm kiếm
         Surface(
             onClick = onSearchClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
             shape = RoundedCornerShape(12.dp),
-            color = LightGreen
+            color = LightGreen // Nền xanh nhạt
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ⭐️ FIX: Dùng stringResource
+                // ✅ FIX: Chữ màu xanh đậm để nổi bật trên nền xanh nhạt
                 Text(
                     text = stringResource(R.string.home_search_hint),
-                    color = Color.White.copy(alpha = 0.8f), // Chữ trắng mờ trên nền xanh nhạt cho đẹp
+                    color = PrimaryGreen.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodyMedium, // Thêm style chuẩn
                     modifier = Modifier.weight(1f)
                 )
-                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
+                // ✅ FIX: Icon màu xanh đậm
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = PrimaryGreen
+                )
             }
         }
     }
