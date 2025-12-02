@@ -1,11 +1,13 @@
 package com.example.stushare.features.feature_home.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +27,20 @@ fun DocumentCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 🟢 CẬP NHẬT LOGIC DỊCH TÊN (Thêm dòng 'lecture')
+    val displayType = remember(document.type) {
+        when (document.type) {
+            "exam_review" -> "Tài liệu ôn thi"
+            "book", "Sách" -> "Sách"
+            "lecture", "slide" -> "Bài giảng" // ✅ Đã thêm dòng này
+            else -> document.type // Các trường hợp khác giữ nguyên
+        }
+    }
+
+    // Logic hiển thị Rating (Giữ nguyên)
+    val safeRating = document.rating ?: 0.0
+    val hasRating = safeRating > 0.0
+
     Card(
         onClick = onClick,
         modifier = modifier
@@ -32,19 +48,16 @@ fun DocumentCard(
             .wrapContentHeight(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            // ✅ FIX 1: Dùng màu theo Theme thay vì Color.White
-            // Light Mode: Nó sẽ lấy màu Surface (thường là trắng hoặc xám rất nhạt)
-            // Dark Mode: Nó sẽ lấy màu xám đậm (VD: #1E1E1E) giúp mắt dễ chịu
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(12.dp)
         ) {
-            // 1. Ảnh bìa
+            // Ảnh bìa
             AsyncImage(
                 model = document.imageUrl,
                 contentDescription = document.title,
@@ -57,61 +70,66 @@ fun DocumentCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Tiêu đề
+            // Tiêu đề
             Text(
                 text = document.title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.heightIn(min = 48.dp),
-                // ✅ Thêm dòng này để chắc chắn chữ màu trắng khi ở Dark Mode
-                // (Mặc định nó sẽ tự lấy onSurface, nhưng khai báo rõ càng tốt)
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // 3. Loại tài liệu
+            // Loại tài liệu (Đã được dịch)
             Text(
-                text = document.type,
-                style = MaterialTheme.typography.bodyMedium,
-                // Lưu ý: PrimaryGreen cần đảm bảo đủ sáng để nhìn thấy trên nền đen.
-                // Nếu quá tối, hãy dùng MaterialTheme.colorScheme.primary
+                text = displayType, // ✅ Hiển thị tiếng Việt
+                style = MaterialTheme.typography.bodySmall,
                 color = PrimaryGreen,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 4. Footer (Rating & Lượt tải)
+            // Footer (Rating & Lượt tải)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Rating
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = "Rating",
-                        modifier = Modifier.size(16.dp),
-                        tint = Color(0xFFFFC107)
-                    )
-                    Spacer(Modifier.width(4.dp))
+                if (hasRating) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Rating",
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFFFFC107)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "%.1f".format(safeRating),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                } else {
                     Text(
-                        text = "%.1f".format(document.rating),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface // ✅ Đồng bộ màu chữ
+                        text = "Mới",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier
+                            .background(Color(0xFFFF9800), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
 
-                // Lượt tải
                 Text(
                     text = "${document.downloads} tải",
                     style = MaterialTheme.typography.labelSmall,
-                    // ✅ FIX 2: Thay Color.Gray bằng onSurfaceVariant
-                    // Đây là màu ngữ nghĩa dành cho text phụ (secondary text)
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

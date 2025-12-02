@@ -181,17 +181,19 @@
     <string name="upload_error_msg">Vui lòng chọn file và nhập tiêu đề!</string>
     <string name="upload_btn">Tải lên ngay</string>
     <string name="upload_btn_loading">Đang tải…</string>
-    <string name="search_title">Tìm kiếm</string>
-    <string name="search_hint">Nhập tên tài liệu, môn học...</string>
-    <string name="search_recent">Tìm kiếm gần đây</string>
-    <string name="clear_all">Xóa tất cả</string>
-    <string name="search_suggestion">Gợi ý cho bạn</string>
-    <string name="back">Quay về</string>
+    <string name="search_title" translatable="false">Tìm kiếm</string>
+    <string name="search_hint" translatable="false">Nhập tên tài liệu, môn học...</string>
+    <string name="search_recent" translatable="false">Tìm kiếm gần đây</string>
+    <string name="clear_all" translatable="false">Xóa tất cả</string>
+    <string name="search_suggestion" translatable="false">Gợi ý cho bạn</string>
+    <string name="back" translatable="false">Quay về</string>
     <string name="sugg_law">Pháp luật đại cương</string>
     <string name="sugg_se">Công nghệ phần mềm</string>
     <string name="sugg_it">Khoa CNTT</string>
     <string name="sugg_exam">#dethi</string>
-    <string name="nav_home">Trang chủ</string>
-    <string name="nav_search">Tìm kiếm</string>
-    <string name="nav_profile">Cá nhân</string>
+    <string name="nav_home" translatable="false">Trang chủ</string>
+    <string name="nav_search" translatable="false">Tìm kiếm</string>
+    <string name="nav_profile" translatable="false">Cá nhân</string>
+    <string name="view_all" translatable="false">Xem tất cả</string>
+    <string name="section_exam_review">Tài liệu ôn thi</string>
 </resources>

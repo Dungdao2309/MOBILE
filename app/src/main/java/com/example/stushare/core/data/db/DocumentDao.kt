@@ -30,11 +30,7 @@ interface DocumentDao {
     // 4. Tìm kiếm (CẢI TIẾN: Chuyển sang Flow để search cũng realtime)
     // Lưu ý: COLLATE NOACCENT có thể cần cài đặt thêm tùy phiên bản Android/Room.
     // Nếu lỗi crash, hãy bỏ "COLLATE NOACCENT" đi.
-    @Query(
-        "SELECT * FROM documents " +
-                "WHERE (title LIKE '%' || :query || '%' COLLATE NOCASE) " +
-                "OR (type LIKE '%' || :query || '%' COLLATE NOCASE)"
-    )
+    @Query("SELECT * FROM documents WHERE normalizedTitle LIKE '%' || :query || '%'")
     fun searchDocuments(query: String): Flow<List<Document>>
 
     // 5. Lấy theo loại (Flow)

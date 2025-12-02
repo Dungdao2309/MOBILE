@@ -1,10 +1,9 @@
-// File: app/src/main/java/com/example/stushare/core/navigation/NavRoute.kt
 package com.example.stushare.core.navigation
 
 import kotlinx.serialization.Serializable
 
 sealed interface NavRoute {
-    // ... (Các route cũ Auth, Home, Settings... giữ nguyên) ...
+    // --- AUTHENTICATION ---
     @Serializable data object Intro : NavRoute
     @Serializable data object Onboarding : NavRoute
     @Serializable data object Login : NavRoute
@@ -12,6 +11,8 @@ sealed interface NavRoute {
     @Serializable data object ForgotPassword : NavRoute
     @Serializable data object LoginSMS : NavRoute
     @Serializable data class VerifyOTP(val verificationId: String) : NavRoute
+
+    // --- MAIN FEATURES ---
     @Serializable data object Profile : NavRoute
     @Serializable data object Home : NavRoute
     @Serializable data object Search : NavRoute
@@ -24,7 +25,14 @@ sealed interface NavRoute {
     @Serializable data object Notification : NavRoute
     @Serializable data object Leaderboard : NavRoute
 
-    // --- NHÓM SETTINGS ---
+    // 🟢 MỚI: Route cho màn hình đọc PDF trong ứng dụng
+    @Serializable
+    data class PdfViewer(
+        val url: String,
+        val title: String
+    ) : NavRoute
+
+    // --- SETTINGS & PROFILE ---
     @Serializable data object Settings : NavRoute
     @Serializable data object AccountSecurity : NavRoute
     @Serializable data object ChangePassword : NavRoute
@@ -34,7 +42,5 @@ sealed interface NavRoute {
     @Serializable data object ContactSupport : NavRoute
     @Serializable data object ReportViolation : NavRoute
     @Serializable data object SwitchAccount : NavRoute
-
-    // ⭐️ THÊM ROUTE CHO THÔNG TIN CÁ NHÂN
     @Serializable data object PersonalInfo : NavRoute
 }

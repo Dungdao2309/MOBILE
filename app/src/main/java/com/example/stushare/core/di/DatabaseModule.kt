@@ -5,7 +5,7 @@ import androidx.room.Room
 import com.example.stushare.core.data.db.AppDatabase
 import com.example.stushare.core.data.db.DocumentDao
 import com.example.stushare.core.data.db.NotificationDao
-import com.example.stushare.core.data.db.UserDao // ⭐️ Import mới
+import com.example.stushare.core.data.db.UserDao
 import com.example.stushare.core.data.network.models.ApiService
 import com.example.stushare.core.data.repository.*
 import com.google.firebase.auth.FirebaseAuth
@@ -30,7 +30,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "stushare_database"
         )
-            .fallbackToDestructiveMigration() // Tự động xóa DB cũ nếu tăng version
+            .fallbackToDestructiveMigration()
             .build()
     }
 
@@ -44,12 +44,23 @@ object DatabaseModule {
         return database.notificationDao()
     }
 
-    // ⭐️ 1. THÊM: Cung cấp UserDao
     @Provides
     fun provideUserDao(database: AppDatabase): UserDao {
         return database.userDao()
     }
 
+    // 🟢 1. CẬP NHẬT: Cung cấp NotificationRepository (Cần thêm Firestore + Auth)
+    @Provides
+    @Singleton
+    fun provideNotificationRepository(
+        notificationDao: NotificationDao,
+        firestore: FirebaseFirestore, // Thêm cái này
+        auth: FirebaseAuth            // Thêm cái này
+    ): NotificationRepository {
+        return NotificationRepositoryImpl(notificationDao, firestore, auth)
+    }
+
+    // 🟢 2. CẬP NHẬT: Cung cấp DocumentRepository (Cần thêm NotificationRepository)
     @Provides
     @Singleton
     fun provideDocumentRepository(
@@ -57,17 +68,19 @@ object DatabaseModule {
         apiService: ApiService,
         settingsRepository: SettingsRepository,
         storage: FirebaseStorage,
-        firestore: FirebaseFirestore
+        firestore: FirebaseFirestore,
+        notificationRepository: NotificationRepository,
+        auth: com.google.firebase.auth.FirebaseAuth // 🟢 1. Thêm tham số này vào hàm
     ): DocumentRepository {
-        return DocumentRepositoryImpl(documentDao, apiService, settingsRepository, storage, firestore)
-    }
-
-    @Provides
-    @Singleton
-    fun provideNotificationRepository(
-        notificationDao: NotificationDao
-    ): NotificationRepository {
-        return NotificationRepositoryImpl(notificationDao)
+        return com.example.stushare.core.data.repository.DocumentRepositoryImpl(
+            documentDao,
+            apiService,
+            settingsRepository,
+            storage,
+            firestore,
+            notificationRepository,
+            auth // 🟢 2. Truyền biến auth vào Constructor ở cuối cùng
+        )
     }
 
     @Provides
@@ -79,7 +92,6 @@ object DatabaseModule {
         return RequestRepositoryImpl(firestore, firebaseAuth)
     }
 
-    // ⭐️ 2. THÊM: Cung cấp LeaderboardRepository
     @Provides
     @Singleton
     fun provideLeaderboardRepository(

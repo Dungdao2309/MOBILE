@@ -20,6 +20,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
+// 1. ĐỊNH NGHĨA UI STATE
+sealed interface ProfileUiState {
+    data object Loading : ProfileUiState
+    data object Unauthenticated : ProfileUiState
+    data class Authenticated(val profile: UserProfile) : ProfileUiState
+}
+
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
@@ -28,115 +35,120 @@ class ProfileViewModel @Inject constructor(
 
     private val auth = FirebaseAuth.getInstance()
 
-    // --- 1. Sự kiện thông báo (Toast) ---
+    // --- Thông báo (Toast) ---
     private val _updateMessage = MutableSharedFlow<String>()
     val updateMessage = _updateMessage.asSharedFlow()
 
-    // --- 2. Trạng thái Loading khi upload ảnh ---
+    // --- Trạng thái upload Avatar ---
     private val _isUploadingAvatar = MutableStateFlow(false)
     val isUploadingAvatar = _isUploadingAvatar.asStateFlow()
 
-    // --- 3. Lắng nghe trạng thái Auth (Realtime) ---
+    // --- Luồng theo dõi User Firebase ---
     private val authStateFlow: Flow<FirebaseUser?> = callbackFlow {
         val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             trySend(firebaseAuth.currentUser)
         }
         auth.addAuthStateListener(authStateListener)
+        trySend(auth.currentUser)
         awaitClose { auth.removeAuthStateListener(authStateListener) }
-    }.flowOn(Dispatchers.IO) // Chạy trên background thread để tránh lag UI
+    }.flowOn(Dispatchers.IO)
 
-    // --- 4. Dữ liệu User Profile ---
-    val userProfile: StateFlow<UserProfile?> = authStateFlow
+    // 2. UI STATE CHÍNH
+    val uiState: StateFlow<ProfileUiState> = authStateFlow
         .map { user ->
             if (user != null) {
-                try {
-                    // Reload để đảm bảo lấy được avatar mới nhất sau khi upload
-                    user.reload().await()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-
-                UserProfile(
+                try { user.reload().await() } catch (e: Exception) { e.printStackTrace() }
+                val profile = UserProfile(
                     id = user.uid,
                     fullName = user.displayName ?: user.email ?: "Sinh viên UTH",
                     email = user.email ?: "",
                     avatarUrl = user.photoUrl?.toString()
                 )
+                ProfileUiState.Authenticated(profile)
             } else {
-                null
+                ProfileUiState.Unauthenticated
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            ProfileUiState.Loading
+        )
 
-    // --- 5. Danh sách tài liệu ĐÃ ĐĂNG ---
+    // 3. Danh sách tài liệu ĐÃ ĐĂNG
     @OptIn(ExperimentalCoroutinesApi::class)
     val publishedDocuments: StateFlow<List<DocItem>> = authStateFlow
         .flatMapLatest { user ->
             if (user != null) {
-                // Lấy các bài post có authorId trùng với user hiện tại
-                documentRepository.getDocumentsByAuthor(user.uid)
-                    .map { documents ->
-                        documents.map { doc ->
-                            DocItem(
-                                documentId = doc.id.toString(), // Lưu ý: Cần đảm bảo ID này khớp logic xóa
-                                docTitle = doc.title,
-                                meta = "Đã đăng • ${doc.downloads} lượt tải"
-                            )
-                        }
+                documentRepository.getDocumentsByAuthor(user.uid).map { documents ->
+                    documents.map { doc ->
+                        DocItem(
+                            documentId = doc.id,
+                            docTitle = doc.title,
+                            meta = "Đã đăng • ${doc.downloads} lượt tải"
+                        )
                     }
+                }
             } else {
                 flowOf(emptyList())
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- 6. Danh sách tài liệu ĐÃ TẢI (Lấy từ Local DB) ---
-    // Hiển thị tất cả tài liệu đang có trong database máy (offline)
+    // 🟢 4. Danh sách ĐÃ LƯU (BOOKMARK)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val savedDocuments: StateFlow<List<DocItem>> = authStateFlow
+        .flatMapLatest { user ->
+            if (user != null) {
+                // Gọi Repository lấy danh sách bookmark thật
+                documentRepository.getBookmarkedDocuments().map { documents ->
+                    documents.map { doc ->
+                        DocItem(
+                            documentId = doc.id,
+                            docTitle = doc.title,
+                            meta = "Đã lưu • ${doc.type}"
+                        )
+                    }
+                }
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // 5. Danh sách tài liệu ĐÃ TẢI (Offline - Giả lập lấy tất cả, bạn có thể lọc lại sau)
     val downloadedDocuments: StateFlow<List<DocItem>> = documentRepository.getAllDocuments()
         .map { documents ->
             documents.map { doc ->
                 DocItem(
-                    documentId = doc.id.toString(),
+                    documentId = doc.id,
                     docTitle = doc.title,
-                    meta = "Đã lưu vào máy • ${doc.type.uppercase()}"
+                    meta = "Đã tải về • ${doc.type.uppercase()}"
                 )
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- 7. Danh sách ĐÃ LƯU (Bookmark) ---
-    // Hiện tại chưa có bảng Bookmark, để trống chờ tính năng sau
-    val savedDocuments: StateFlow<List<DocItem>> = MutableStateFlow(emptyList())
-
 
     // =========================================================================
-    // CÁC HÀM XỬ LÝ LOGIC (ACTIONS)
+    // ACTIONS - CÁC HÀM XỬ LÝ SỰ KIỆN
     // =========================================================================
 
-    // ✅ 1. Upload Avatar
+    // Cập nhật Avatar
     fun uploadAvatar(uri: Uri) {
         val user = auth.currentUser ?: return
-
         viewModelScope.launch {
-            _isUploadingAvatar.value = true // Bật loading
+            _isUploadingAvatar.value = true
             try {
-                // 1. Tạo đường dẫn file: avatars/user_id.jpg
                 val storageRef = storage.reference.child("avatars/${user.uid}.jpg")
-
-                // 2. Upload file lên Firebase Storage
                 storageRef.putFile(uri).await()
-
-                // 3. Lấy link tải xuống (Download URL)
                 val downloadUrl = storageRef.downloadUrl.await()
 
-                // 4. Cập nhật URL vào Firebase Auth Profile
                 val profileUpdates = UserProfileChangeRequest.Builder()
                     .setPhotoUri(downloadUrl)
                     .build()
 
                 user.updateProfile(profileUpdates).await()
-
-                // 5. Reload lại user để UI cập nhật ảnh mới ngay lập tức
                 user.reload().await()
 
                 _updateMessage.emit("Đã cập nhật ảnh đại diện!")
@@ -144,68 +156,59 @@ class ProfileViewModel @Inject constructor(
                 e.printStackTrace()
                 _updateMessage.emit("Lỗi tải ảnh: ${e.message}")
             } finally {
-                _isUploadingAvatar.value = false // Tắt loading
+                _isUploadingAvatar.value = false
             }
         }
     }
 
-    // ✅ 2. Cập nhật Tên hiển thị
+    // Cập nhật Tên hiển thị
     fun updateUserName(newName: String) {
-        val user = auth.currentUser
-        if (user != null) {
-            if (newName.isBlank()) {
-                viewModelScope.launch { _updateMessage.emit("Tên không được để trống!") }
-                return
+        val user = auth.currentUser ?: return
+        if (newName.isBlank()) {
+            viewModelScope.launch { _updateMessage.emit("Tên không được để trống!") }
+            return
+        }
+        val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(newName).build()
+        user.updateProfile(profileUpdates).addOnCompleteListener { task ->
+            viewModelScope.launch {
+                if (task.isSuccessful) {
+                    _updateMessage.emit("Cập nhật tên thành công!")
+                    user.reload()
+                } else {
+                    _updateMessage.emit("Lỗi: ${task.exception?.message}")
+                }
             }
-            val profileUpdates = UserProfileChangeRequest.Builder()
-                .setDisplayName(newName)
-                .build()
+        }
+    }
 
-            user.updateProfile(profileUpdates)
-                .addOnCompleteListener { task ->
+    // Đổi mật khẩu
+    fun changePassword(currentPass: String, newPass: String) {
+        val user = auth.currentUser ?: return
+        if (user.email == null) return
+
+        // Cần xác thực lại trước khi đổi mật khẩu
+        val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
+        user.reauthenticate(credential).addOnCompleteListener { authTask ->
+            if (authTask.isSuccessful) {
+                user.updatePassword(newPass).addOnCompleteListener { updateTask ->
                     viewModelScope.launch {
-                        if (task.isSuccessful) {
-                            _updateMessage.emit("Cập nhật tên thành công!")
-                            user.reload()
+                        if (updateTask.isSuccessful) {
+                            _updateMessage.emit("Đổi mật khẩu thành công!")
                         } else {
-                            _updateMessage.emit("Lỗi: ${task.exception?.message}")
+                            _updateMessage.emit("Lỗi: ${updateTask.exception?.message}")
                         }
                     }
                 }
-        }
-    }
-
-    // ✅ 3. Đổi Mật Khẩu
-    fun changePassword(currentPass: String, newPass: String) {
-        val user = auth.currentUser
-        if (user == null || user.email == null) {
-            viewModelScope.launch { _updateMessage.emit("Lỗi: Không tìm thấy thông tin người dùng") }
-            return
-        }
-        val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
-        user.reauthenticate(credential)
-            .addOnCompleteListener { authTask ->
-                if (authTask.isSuccessful) {
-                    user.updatePassword(newPass)
-                        .addOnCompleteListener { updateTask ->
-                            viewModelScope.launch {
-                                if (updateTask.isSuccessful) {
-                                    _updateMessage.emit("Đổi mật khẩu thành công!")
-                                } else {
-                                    _updateMessage.emit("Lỗi đổi pass: ${updateTask.exception?.message}")
-                                }
-                            }
-                        }
-                } else {
-                    viewModelScope.launch { _updateMessage.emit("Mật khẩu hiện tại không đúng!") }
-                }
+            } else {
+                viewModelScope.launch { _updateMessage.emit("Mật khẩu hiện tại không đúng!") }
             }
+        }
     }
 
-    // ✅ 4. Cập nhật Email
+    // Đổi Email
     fun updateEmail(currentPass: String, newEmail: String) {
-        val user = auth.currentUser
-        if (user == null || user.email == null) return
+        val user = auth.currentUser ?: return
+        if (user.email == null) return
 
         val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
         user.reauthenticate(credential).addOnCompleteListener { task ->
@@ -214,7 +217,6 @@ class ProfileViewModel @Inject constructor(
                     viewModelScope.launch {
                         if (updateTask.isSuccessful) {
                             _updateMessage.emit("Đổi email thành công!")
-                            user.reload()
                         } else {
                             _updateMessage.emit("Lỗi: ${updateTask.exception?.message}")
                         }
@@ -226,7 +228,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // ✅ 5. Xóa tài liệu
+    // Xóa tài liệu đã đăng
     fun deletePublishedDocument(docId: String) {
         viewModelScope.launch {
             try {
@@ -242,7 +244,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // ✅ 6. Đăng xuất
+    // Đăng xuất
     fun signOut() {
         auth.signOut()
     }

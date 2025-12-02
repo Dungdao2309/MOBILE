@@ -2,26 +2,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ✅ 1. Quyền truy cập Internet (Bắt buộc để kết nối Firebase) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- ✅ 2. Quyền đọc/ghi bộ nhớ cho các phiên bản Android cũ (Android 9 trở xuống) -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
-    <!-- ✅ 3. Quyền đọc ảnh cho Android 13+ (API 33 trở lên) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
+        android:name="com.example.stushare.MainApplication"  android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:name=".MainApplication"
-        android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+
+        android:usesCleartextTraffic="true"
+
         android:theme="@style/Theme.StuShare">
         <activity
             android:name=".MainActivity"

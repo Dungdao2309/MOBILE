@@ -19,11 +19,14 @@ import com.google.firebase.auth.FirebaseAuth
 
 // Import NavRoute
 import com.example.stushare.core.navigation.NavRoute
+import com.example.stushare.core.data.models.NotificationEntity
 
-// Import Screens (Auth)
+// Import Utils
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
+// Import Screens
 import com.example.stushare.features.auth.ui.*
-
-// Import Screens (Main)
 import com.example.stushare.features.feature_home.ui.home.HomeScreen
 import com.example.stushare.features.feature_home.ui.viewall.ViewAllScreen
 import com.example.stushare.features.feature_search.ui.search.SearchScreen
@@ -36,8 +39,7 @@ import com.example.stushare.features.feature_request.ui.create.CreateRequestScre
 import com.example.stushare.features.feature_leaderboard.ui.LeaderboardScreen
 import com.example.stushare.features.feature_leaderboard.ui.LeaderboardViewModel
 import com.example.stushare.features.feature_notification.ui.NotificationScreen
-
-// Import Screens (Profile & Settings)
+import com.example.stushare.features.feature_document_detail.ui.pdf.PdfViewerScreen
 import com.example.stushare.features.feature_profile.ui.main.ProfileScreen
 import com.example.stushare.features.feature_profile.ui.main.ProfileViewModel
 import com.example.stushare.features.feature_profile.ui.settings.SettingsScreen
@@ -58,25 +60,25 @@ fun AppNavigation(
     modifier: Modifier = Modifier,
     windowSizeClass: WindowSizeClass
 ) {
-    // --- CẤU HÌNH ANIMATION CHUYỂN CẢNH ---
+    // --- CẤU HÌNH ANIMATION ---
     val duration = 300
     val enterTransition = slideInHorizontally(animationSpec = tween(duration), initialOffsetX = { it }) + fadeIn(animationSpec = tween(duration))
     val exitTransition = slideOutHorizontally(animationSpec = tween(duration), targetOffsetX = { -it }) + fadeOut(animationSpec = tween(duration))
     val popEnterTransition = slideInHorizontally(animationSpec = tween(duration), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(duration))
     val popExitTransition = slideOutHorizontally(animationSpec = tween(duration), targetOffsetX = { it }) + fadeOut(animationSpec = tween(duration))
 
+    // 🟢 ĐÃ XÓA SCAFFOLD VÀ BOTTOMNAVBAR Ở ĐÂY (Vì MainActivity đã lo rồi)
     NavHost(
         navController = navController,
-        startDestination = NavRoute.Intro, // Hoặc màn hình Splash nếu có
-        modifier = modifier,
-        // Hiệu ứng mặc định (Fade) cho các màn hình không cấu hình riêng
+        startDestination = NavRoute.Intro,
+        modifier = modifier, // Sử dụng modifier được truyền từ MainActivity (đã có padding)
         enterTransition = { fadeIn(animationSpec = tween(duration)) },
         exitTransition = { fadeOut(animationSpec = tween(duration)) },
         popEnterTransition = { fadeIn(animationSpec = tween(duration)) },
         popExitTransition = { fadeOut(animationSpec = tween(duration)) }
     ) {
         // ==========================================
-        // 1. AUTHENTICATION (Đăng nhập/Đăng ký)
+        // 1. AUTHENTICATION
         // ==========================================
         composable<NavRoute.Intro> { ManHinhChao(navController) }
         composable<NavRoute.Onboarding> { ManHinhGioiThieu(navController) }
@@ -90,7 +92,7 @@ fun AppNavigation(
         }
 
         // ==========================================
-        // 2. MAIN FEATURES (Home, Search, Upload...)
+        // 2. MAIN FEATURES
         // ==========================================
         composable<NavRoute.Home> {
             val context = LocalContext.current
@@ -107,9 +109,10 @@ fun AppNavigation(
                     }
                 },
                 onUploadClick = {
-                    if (FirebaseAuth.getInstance().currentUser != null) navController.navigate(NavRoute.Upload)
-                    else {
-                        Toast.makeText(context, "Cần đăng nhập!", Toast.LENGTH_SHORT).show()
+                    if (FirebaseAuth.getInstance().currentUser != null) {
+                        navController.navigate(NavRoute.Upload)
+                    } else {
+                        Toast.makeText(context, "Bạn cần đăng nhập để đăng tài liệu!", Toast.LENGTH_SHORT).show()
                         navController.navigate(NavRoute.Login)
                     }
                 },
@@ -141,13 +144,35 @@ fun AppNavigation(
         composable<NavRoute.DocumentDetail> { backStackEntry ->
             val route = backStackEntry.toRoute<NavRoute.DocumentDetail>()
             val context = LocalContext.current
+
             DocumentDetailScreen(
                 documentId = route.documentId,
                 onBackClick = { navController.popBackStack() },
                 onLoginRequired = {
                     Toast.makeText(context, "Cần đăng nhập!", Toast.LENGTH_SHORT).show()
                     navController.navigate(NavRoute.Login)
+                },
+                onReadPdf = { url, title ->
+                    if (url.isNotBlank()) {
+                        try {
+                            val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
+                            navController.navigate(NavRoute.PdfViewer(url = encodedUrl, title = title))
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Lỗi đường dẫn file", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(context, "File không tồn tại", Toast.LENGTH_SHORT).show()
+                    }
                 }
+            )
+        }
+
+        composable<NavRoute.PdfViewer> { backStackEntry ->
+            val route = backStackEntry.toRoute<NavRoute.PdfViewer>()
+            PdfViewerScreen(
+                url = route.url,
+                title = route.title,
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -195,11 +220,29 @@ fun AppNavigation(
         }
 
         composable<NavRoute.Notification> {
-            NotificationScreen(onBackClick = { navController.popBackStack() })
+            val context = LocalContext.current
+            NotificationScreen(
+                onBackClick = { navController.popBackStack() },
+                onNotificationClick = { notification ->
+                    when (notification.type) {
+                        NotificationEntity.TYPE_UPLOAD,
+                        NotificationEntity.TYPE_DOWNLOAD,
+                        NotificationEntity.TYPE_RATING,
+                        NotificationEntity.TYPE_COMMENT    -> {
+                            if (notification.relatedId != null) {
+                                navController.navigate(NavRoute.DocumentDetail(notification.relatedId))
+                            } else {
+                                Toast.makeText(context, "Không tìm thấy tài liệu liên kết", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        NotificationEntity.TYPE_SYSTEM -> { }
+                    }
+                }
+            )
         }
 
         // ==========================================
-        // 3. PROFILE & SETTINGS (Tài khoản & Cài đặt)
+        // 3. PROFILE & SETTINGS
         // ==========================================
         composable<NavRoute.Profile> {
             val viewModel = hiltViewModel<ProfileViewModel>()
@@ -208,7 +251,8 @@ fun AppNavigation(
                 onNavigateToSettings = { navController.navigate(NavRoute.Settings) },
                 onNavigateToLeaderboard = { navController.navigate(NavRoute.Leaderboard) },
                 onNavigateToLogin = { navController.navigate(NavRoute.Login) },
-                onNavigateToRegister = { navController.navigate(NavRoute.Register) }
+                onNavigateToRegister = { navController.navigate(NavRoute.Register) },
+                onDocumentClick = { docId -> navController.navigate(NavRoute.DocumentDetail(docId)) }
             )
         }
 
@@ -217,8 +261,6 @@ fun AppNavigation(
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
         ) {
             val context = LocalContext.current
-            val viewModel = hiltViewModel<ProfileViewModel>() // Lấy ViewModel để gọi signout nếu cần thiết
-
             SettingsScreen(
                 onBackClick = { navController.popBackStack() },
                 onAccountSecurityClick = { navController.navigate(NavRoute.AccountSecurity) },
@@ -229,24 +271,17 @@ fun AppNavigation(
                 onReportViolationClick = { navController.navigate(NavRoute.ReportViolation) },
                 onSwitchAccountClick = { navController.navigate(NavRoute.SwitchAccount) },
                 onLogoutClick = {
-                    // 1. Xử lý đăng xuất Firebase
                     FirebaseAuth.getInstance().signOut()
-
-                    // 2. Thông báo
                     Toast.makeText(context, "Đã đăng xuất thành công", Toast.LENGTH_SHORT).show()
-
-                    // 3. Điều hướng về Login và XÓA SẠCH Back Stack để không back lại được
                     navController.navigate(NavRoute.Login) {
-                        popUpTo(0) { inclusive = true } // Xóa hết lịch sử
+                        popUpTo(0) { inclusive = true }
                         launchSingleTop = true
                     }
                 }
             )
         }
 
-        // --- CÁC MÀN HÌNH CON CỦA SETTINGS ---
-
-        // 3.1 Account & Security
+        // (Giữ nguyên các màn hình con của Settings)
         composable<NavRoute.AccountSecurity>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
@@ -283,7 +318,6 @@ fun AppNavigation(
             SwitchAccountScreen(onBackClick = { navController.popBackStack() })
         }
 
-        // 3.2 Notification & Appearance
         composable<NavRoute.NotificationSettings>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
@@ -299,7 +333,6 @@ fun AppNavigation(
             AppearanceSettingsScreen(viewModel = viewModel, onBackClick = { navController.popBackStack() })
         }
 
-        // 3.3 Legal & Support
         composable<NavRoute.AboutApp>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }

@@ -29,9 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.stushare.R
 import com.example.stushare.ui.theme.PrimaryGreen
 
+@OptIn(ExperimentalMaterial3Api::class) // Cần thiết cho DropdownMenu
 @Composable
 fun UploadScreen(
     viewModel: UploadViewModel,
@@ -41,8 +41,19 @@ fun UploadScreen(
     val isUploading by viewModel.isUploading.collectAsStateWithLifecycle()
 
     var title by remember { mutableStateOf("") }
-    var author by remember { mutableStateOf("") } // ✍️ Thêm biến Author
+    var author by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+
+    // --- 🟢 MỚI: CẤU HÌNH DANH SÁCH LOẠI TÀI LIỆU ---
+    // Pair: "Tên hiển thị" to "Mã lưu trong DB"
+    val categories = listOf(
+        "Tài liệu ôn thi" to "exam_review",
+        "Sách / Giáo trình" to "book",
+        "Bài giảng / Slide" to "lecture"
+    )
+    // Mặc định chọn cái đầu tiên
+    var selectedCategoryPair by remember { mutableStateOf(categories[0]) }
+    var expanded by remember { mutableStateOf(false) } // Trạng thái mở/đóng menu
 
     // File tài liệu
     var selectedFileName by remember { mutableStateOf("") }
@@ -51,13 +62,12 @@ fun UploadScreen(
     // Ảnh bìa
     var selectedCoverUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Launcher chọn FILE (PDF/Word)
+    // Launcher chọn FILE
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
             selectedFileUri = it
-            // Lấy tên file
             val cursor = context.contentResolver.query(it, null, null, null, null)
             cursor?.use { c ->
                 if (c.moveToFirst()) {
@@ -65,27 +75,23 @@ fun UploadScreen(
                     if (nameIndex >= 0) selectedFileName = c.getString(nameIndex)
                 }
             }
-            // Tự điền tiêu đề nếu chưa có
             if (title.isEmpty()) {
                 title = selectedFileName.substringBeforeLast(".")
             }
         }
     }
 
-    // Launcher chọn ẢNH BÌA (Image Only)
+    // Launcher chọn ẢNH
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        selectedCoverUri = uri
-    }
+    ) { uri -> selectedCoverUri = uri }
 
-    // Lắng nghe kết quả Upload
     LaunchedEffect(Unit) {
         viewModel.uploadEvent.collect { result ->
             when (result) {
                 is UploadViewModel.UploadResult.Success -> {
                     Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
-                    onBackClick() // Quay về trang trước
+                    onBackClick()
                 }
                 is UploadViewModel.UploadResult.Error -> {
                     Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
@@ -122,34 +128,28 @@ fun UploadScreen(
 
             // --- FORM CARD ---
             Card(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .offset(y = (-20).dp),
+                modifier = Modifier.padding(16.dp).offset(y = (-20).dp),
                 elevation = CardDefaults.cardElevation(4.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
 
-                    // 1. CHỌN ẢNH BÌA
+                    // 1. ẢNH BÌA
                     Text("Ảnh bìa (Tùy chọn)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Box(
                         modifier = Modifier
                             .size(100.dp, 140.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color.LightGray.copy(alpha = 0.3f))
-                            .clickable {
-                                // Mở thư viện ảnh
-                                imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            },
+                            .clickable { imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         contentAlignment = Alignment.Center
                     ) {
                         if (selectedCoverUri != null) {
                             AsyncImage(
                                 model = selectedCoverUri,
-                                contentDescription = "Selected Cover",
+                                contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
@@ -163,14 +163,13 @@ fun UploadScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // 2. CHỌN FILE TÀI LIỆU
+                    // 2. FILE TÀI LIỆU
                     Text("Tệp đính kèm *", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f), RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -183,57 +182,81 @@ fun UploadScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
-
                     Spacer(modifier = Modifier.height(12.dp))
-
                     Button(
-                        onClick = {
-                            filePickerLauncher.launch(arrayOf(
-                                "application/pdf",
-                                "application/msword",
-                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                            ))
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray), // Đổi màu để phân biệt nút Upload
+                        onClick = { filePickerLauncher.launch(arrayOf("application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Chọn file tài liệu (PDF/Word)")
-                    }
+                    ) { Text("Chọn file tài liệu (PDF/Word)") }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 3. NHẬP TIÊU ĐỀ
+                    // --- 🟢 MỚI: DROPDOWN MENU CHỌN LOẠI TÀI LIỆU ---
+                    Text("Phân loại *", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = selectedCategoryPair.first, // Hiển thị tên tiếng Việt
+                            onValueChange = {},
+                            readOnly = true, // Không cho gõ tay
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                                focusedBorderColor = PrimaryGreen,
+                                focusedLabelColor = PrimaryGreen
+                            ),
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            categories.forEach { item ->
+                                DropdownMenuItem(
+                                    text = { Text(item.first) },
+                                    onClick = {
+                                        selectedCategoryPair = item
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 3. TIÊU ĐỀ
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
                         label = { Text("Tên tài liệu *") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryGreen,
-                            focusedLabelColor = PrimaryGreen
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen)
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 4. NHẬP TÁC GIẢ (NEW)
+                    // 4. TÁC GIẢ
                     OutlinedTextField(
                         value = author,
                         onValueChange = { author = it },
-                        label = { Text("Tên tác giả (Ví dụ: Nguyễn Nhật Ánh) *") }, // ✍️
+                        label = { Text("Tên tác giả *") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryGreen,
-                            focusedLabelColor = PrimaryGreen
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen)
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 5. NHẬP MÔ TẢ
+                    // 5. MÔ TẢ
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
@@ -242,41 +265,40 @@ fun UploadScreen(
                         minLines = 3,
                         maxLines = 5,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryGreen,
-                            focusedLabelColor = PrimaryGreen
-                        )
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen)
                     )
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // 6. NÚT ĐĂNG TÀI
+                    // 6. NÚT ĐĂNG
                     Button(
                         onClick = {
                             if (selectedFileUri != null && title.isNotBlank() && author.isNotBlank()) {
-                                // Lấy mimeType
                                 val mimeType = context.contentResolver.getType(selectedFileUri!!) ?: "application/octet-stream"
 
-                                // 🔴 GỌI HÀM VỚI ĐỦ THAM SỐ
+                                // 🟢 Gửi thêm tham số type
                                 viewModel.handleUploadClick(
                                     title = title,
                                     description = description,
                                     fileUri = selectedFileUri,
                                     mimeType = mimeType,
-                                    coverUri = selectedCoverUri, // Truyền ảnh bìa
-                                    author = author              // Truyền tác giả
+                                    coverUri = selectedCoverUri,
+                                    author = author,
+                                    type = selectedCategoryPair.second // Gửi mã (exam_review) đi
                                 )
                             } else {
-                                Toast.makeText(context, "Vui lòng nhập đủ thông tin (File, Tiêu đề, Tác giả)", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Vui lòng nhập đủ thông tin", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        enabled = !isUploading,
+                        enabled = !isUploading, // Disable khi đang tải
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isUploading) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Đang tải lên...")
                         } else {
                             Text("Đăng tài liệu", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }

@@ -9,9 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -33,7 +31,10 @@ import com.example.stushare.core.navigation.NavRoute
 import com.example.stushare.ui.theme.PrimaryGreen
 
 @Composable
-fun BottomNavBar(navController: NavController) {
+fun BottomNavBar(
+    navController: NavController,
+    unreadNotificationCount: Int = 0 // 🟢 MỚI: Nhận số lượng tin chưa đọc
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
@@ -43,7 +44,14 @@ fun BottomNavBar(navController: NavController) {
     )
 
     val rightItems = listOf(
-        NavigationItem(stringResource(R.string.notifications), Icons.Filled.Notifications, Icons.Outlined.Notifications, NavRoute.Notification),
+        // 🟢 CẬP NHẬT: Truyền số lượng tin chưa đọc vào item Notification
+        NavigationItem(
+            title = stringResource(R.string.notifications),
+            selectedIcon = Icons.Filled.Notifications,
+            unselectedIcon = Icons.Outlined.Notifications,
+            route = NavRoute.Notification,
+            badgeCount = unreadNotificationCount // Gán số lượng vào đây
+        ),
         NavigationItem(stringResource(R.string.nav_profile), Icons.Filled.Person, Icons.Outlined.Person, NavRoute.Profile)
     )
 
@@ -73,7 +81,7 @@ fun BottomNavBar(navController: NavController) {
                         }
                     }
                 }
-                // Giữa (Khoảng trống)
+                // Giữa (Khoảng trống cho nút Upload)
                 Spacer(modifier = Modifier.size(60.dp))
                 // Phải
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -86,7 +94,7 @@ fun BottomNavBar(navController: NavController) {
             }
         }
 
-        // 2. Nút Upload
+        // 2. Nút Upload (Nổi ở giữa)
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -113,6 +121,7 @@ fun BottomNavBar(navController: NavController) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit) {
     Column(
@@ -125,12 +134,31 @@ fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit
             ) { onClick() }
             .padding(8.dp)
     ) {
-        Icon(
-            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-            contentDescription = item.title,
-            tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
-            modifier = Modifier.size(26.dp)
-        )
+        // 🟢 CẬP NHẬT: Dùng BadgedBox để bọc Icon
+        BadgedBox(
+            badge = {
+                if (item.badgeCount > 0) {
+                    Badge(
+                        containerColor = Color.Red, // Màu đỏ nổi bật
+                        contentColor = Color.White,
+                        modifier = Modifier
+                            .offset(x = (-4).dp, y = 4.dp) // Căn chỉnh vị trí chấm đỏ
+                            .size(8.dp) // Kích thước chấm nhỏ gọn (dạng dot)
+                    ) {
+                        // Nếu muốn hiện số (VD: 1, 2, 99+) thì uncomment dòng dưới
+                        // Text(text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString())
+                    }
+                }
+            }
+        ) {
+            Icon(
+                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                contentDescription = item.title,
+                tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(26.dp)
+            )
+        }
+
         if (isSelected) {
             Text(text = item.title, fontSize = 10.sp, color = Color.White)
         }
@@ -145,9 +173,11 @@ fun navigateSafe(navController: NavController, route: NavRoute) {
     }
 }
 
+// 🟢 CẬP NHẬT DATA CLASS
 data class NavigationItem(
     val title: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
-    val route: NavRoute
+    val route: NavRoute,
+    val badgeCount: Int = 0 // Mặc định là 0 (không hiện chấm)
 )

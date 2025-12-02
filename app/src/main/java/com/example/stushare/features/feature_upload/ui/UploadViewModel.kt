@@ -28,51 +28,40 @@ class UploadViewModel @Inject constructor(
         data class Error(val message: String) : UploadResult()
     }
 
-    // 🔴 CẬP NHẬT: Thêm tham số coverUri (Ảnh bìa) và author (Tác giả)
     fun handleUploadClick(
         title: String,
         description: String,
         fileUri: Uri?,
         mimeType: String,
-        // 👇 THÊM 2 THAM SỐ NÀY
         coverUri: Uri?,
-        author: String
+        author: String,
+        type: String // 🟢 MỚI: Nhận loại tài liệu (exam_review, book...)
     ) {
-        // 1. Kiểm tra File tài liệu
         if (fileUri == null) {
-            viewModelScope.launch {
-                _uploadEvent.emit(UploadResult.Error("Vui lòng chọn file tài liệu!"))
-            }
+            viewModelScope.launch { _uploadEvent.emit(UploadResult.Error("Vui lòng chọn file tài liệu!")) }
             return
         }
-
-        // 2. Kiểm tra Tiêu đề
         if (title.isBlank()) {
-            viewModelScope.launch {
-                _uploadEvent.emit(UploadResult.Error("Vui lòng nhập tiêu đề!"))
-            }
+            viewModelScope.launch { _uploadEvent.emit(UploadResult.Error("Vui lòng nhập tiêu đề!")) }
             return
         }
-
-        // 3. Kiểm tra Tên tác giả
         if (author.isBlank()) {
-            viewModelScope.launch {
-                _uploadEvent.emit(UploadResult.Error("Vui lòng nhập tên tác giả!"))
-            }
+            viewModelScope.launch { _uploadEvent.emit(UploadResult.Error("Vui lòng nhập tên tác giả!")) }
             return
         }
 
         viewModelScope.launch {
             _isUploading.value = true
             try {
-                // 🔴 GỌI HÀM UPLOAD MỚI (TRUYỀN ĐỦ 6 THAM SỐ)
+                // Gọi Repository
                 val result = documentRepository.uploadDocument(
                     title = title,
                     description = description,
                     fileUri = fileUri,
                     mimeType = mimeType,
-                    coverUri = coverUri, // Truyền ảnh bìa
-                    author = author      // Truyền tên tác giả
+                    coverUri = coverUri,
+                    author = author,
+                    type = type // 🟢 Truyền type xuống Repository
                 )
 
                 if (result.isSuccess) {

@@ -7,15 +7,21 @@ interface NotificationRepository {
     // Lấy danh sách thông báo
     fun getNotifications(): Flow<List<NotificationEntity>>
 
-    // Lấy số lượng tin chưa đọc (để hiện chấm đỏ)
+    // Lấy số lượng tin chưa đọc
     fun getUnreadCount(): Flow<Int>
 
-    // Thêm thông báo mới
-    suspend fun addNotification(title: String, message: String, type: String)
+    // Tạo thông báo mới
+    // 🆕 CẬP NHẬT: Thêm tham số relatedId (để biết link tới tài liệu nào)
+    suspend fun createNotification(
+        targetUserId: String,
+        title: String,
+        message: String,
+        type: String,
+        relatedId: String? = null // Cho phép null
+    )
 
-    // Đánh dấu đã đọc
-    suspend fun markAsRead(id: Long)
-
-    // Xóa thông báo
-    suspend fun deleteNotification(id: Long)
+    // Các hàm thao tác khác giữ nguyên
+    suspend fun markAsRead(id: String)
+    suspend fun markAllAsRead()
+    suspend fun deleteNotification(id: String)
 }

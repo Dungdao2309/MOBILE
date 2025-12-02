@@ -177,4 +177,5 @@
     <string name="sugg_se">Software Engineering</string>
     <string name="sugg_it">IT Faculty</string>
     <string name="sugg_exam">#exam</string>
+    <string name="section_exam_review">Tài liệu ôn thi</string>
 </resources>

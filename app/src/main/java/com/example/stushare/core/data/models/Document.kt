@@ -14,21 +14,17 @@ import androidx.room.Index
 data class Document(
     @PrimaryKey
     val id: String,
-
     val title: String,
+    // 🟢 THÊM DÒNG NÀY:
+    val normalizedTitle: String = "",
+    val description: String = "",
     val type: String,
     val imageUrl: String,
-
-    // ⭐️ THÊM MỚI: Trường này chứa link file (PDF/Word) để tải về
-    // Mặc định để chuỗi rỗng "" để tránh lỗi null
     val fileUrl: String = "",
-
     val downloads: Int,
     val rating: Double,
     val author: String,
     val courseCode: String,
-
     val createdAt: Long = System.currentTimeMillis(),
-
     val authorId: String? = null
 )
