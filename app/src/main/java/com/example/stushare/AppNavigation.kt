@@ -54,6 +54,7 @@ import com.example.stushare.features.feature_profile.ui.legal.AboutAppScreen
 import com.example.stushare.features.feature_profile.ui.legal.ContactSupportScreen
 import com.example.stushare.features.feature_profile.ui.legal.ReportViolationScreen
 import com.example.stushare.feature_request.ui.detail.RequestDetailScreen
+
 @Composable
 fun AppNavigation(
     navController: NavHostController,
@@ -76,9 +77,7 @@ fun AppNavigation(
         popEnterTransition = { fadeIn(animationSpec = tween(duration)) },
         popExitTransition = { fadeOut(animationSpec = tween(duration)) }
     ) {
-        // ==========================================
-        // 1. AUTHENTICATION
-        // ==========================================
+        // ... (Các màn hình Auth & Main Features giữ nguyên) ...
         composable<NavRoute.Intro> { ManHinhChao(navController) }
         composable<NavRoute.Onboarding> { ManHinhGioiThieu(navController) }
         composable<NavRoute.Login> { ManHinhDangNhap(navController) }
@@ -90,9 +89,6 @@ fun AppNavigation(
             ManHinhXacThucOTP(navController, args.verificationId)
         }
 
-        // ==========================================
-        // 2. MAIN FEATURES
-        // ==========================================
         composable<NavRoute.Home> {
             val context = LocalContext.current
             HomeScreen(
@@ -117,8 +113,6 @@ fun AppNavigation(
                 },
                 onLeaderboardClick = { navController.navigate(NavRoute.Leaderboard) },
                 onNotificationClick = { navController.navigate(NavRoute.Notification) },
-
-                // 🟢 MỚI: Xử lý click icon Cộng đồng -> Dẫn tới RequestList
                 onRequestListClick = { navController.navigate(NavRoute.RequestList) }
             )
         }
@@ -140,7 +134,7 @@ fun AppNavigation(
             SearchResultScreen(
                 onBackClick = { navController.popBackStack() },
                 onDocumentClick = { documentId -> navController.navigate(NavRoute.DocumentDetail(documentId.toString())) },
-                onRequestClick = { navController.navigate(NavRoute.RequestList) } // Chuyển sang trang Yêu cầu tài liệu
+                onRequestClick = { navController.navigate(NavRoute.RequestList) }
             )
         }
 
@@ -170,7 +164,6 @@ fun AppNavigation(
             )
         }
 
-        // ... (Phần còn lại của file giữ nguyên như cũ)
         composable<NavRoute.PdfViewer> { backStackEntry ->
             val route = backStackEntry.toRoute<NavRoute.PdfViewer>()
             PdfViewerScreen(
@@ -200,17 +193,12 @@ fun AppNavigation(
                         navController.navigate(NavRoute.Login)
                     }
                 },
-                onNavigateToDetail = { requestId ->
-                    navController.navigate(NavRoute.RequestDetail(requestId))
-                }
+                onNavigateToDetail = { requestId -> navController.navigate(NavRoute.RequestDetail(requestId)) }
             )
         }
+
         composable<NavRoute.RequestDetail> {
-            // RequestDetailScreen tự lấy ID từ SavedStateHandle trong ViewModel
-            // nên ta không cần truyền tham số trực tiếp ở đây cũng được
-            RequestDetailScreen(
-                onBackClick = { navController.popBackStack() }
-            )
+            RequestDetailScreen(onBackClick = { navController.popBackStack() })
         }
 
         composable<NavRoute.CreateRequest> {
@@ -266,7 +254,11 @@ fun AppNavigation(
                 onNavigateToLeaderboard = { navController.navigate(NavRoute.Leaderboard) },
                 onNavigateToLogin = { navController.navigate(NavRoute.Login) },
                 onNavigateToRegister = { navController.navigate(NavRoute.Register) },
-                onDocumentClick = { docId -> navController.navigate(NavRoute.DocumentDetail(docId)) }
+                onDocumentClick = { docId -> navController.navigate(NavRoute.DocumentDetail(docId)) },
+
+                // 🟢 THÊM: Truyền hành động cho Empty State
+                onNavigateToUpload = { navController.navigate(NavRoute.Upload) },
+                onNavigateToHome = { navController.navigate(NavRoute.Home) }
             )
         }
 
@@ -295,6 +287,7 @@ fun AppNavigation(
             )
         }
 
+        // ... (Giữ nguyên các màn hình Settings con: AccountSecurity, PersonalInfo, v.v...)
         composable<NavRoute.AccountSecurity>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }

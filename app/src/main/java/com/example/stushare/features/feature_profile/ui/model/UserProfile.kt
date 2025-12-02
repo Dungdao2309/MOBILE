@@ -4,5 +4,9 @@ data class UserProfile(
     val id: String,
     val fullName: String,
     val email: String,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+
+    // 🟢 MỚI: Thông tin mở rộng
+    val major: String = "Chưa cập nhật",
+    val bio: String = ""
 )

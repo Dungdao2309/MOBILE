@@ -14,10 +14,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,33 +49,35 @@ import com.example.stushare.ui.theme.PrimaryGreen
 @Composable
 fun PersonalInfoScreen(
     onBackClick: () -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel() // Sử dụng chung ViewModel với màn Profile
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    // 1. 🟢 LẤNG NGHE UI STATE (Thay vì userProfile cũ)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isUploadingAvatar by viewModel.isUploadingAvatar.collectAsStateWithLifecycle()
 
-    // 2. State tên hiển thị (Local state để edit)
+    // Local State cho các trường chỉnh sửa
     var name by remember { mutableStateOf("") }
+    var major by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
 
-    // 3. Đồng bộ dữ liệu từ ViewModel vào ô nhập khi load xong
+    // Đồng bộ dữ liệu khi load
     LaunchedEffect(uiState) {
         if (uiState is ProfileUiState.Authenticated) {
-            name = (uiState as ProfileUiState.Authenticated).profile.fullName
+            val profile = (uiState as ProfileUiState.Authenticated).profile
+            name = profile.fullName
+            major = profile.major
+            bio = profile.bio
         }
     }
 
-    // 4. Lắng nghe thông báo (Toast)
     LaunchedEffect(Unit) {
         viewModel.updateMessage.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
-    // 5. Trình chọn ảnh (Đồng bộ với ProfileScreen)
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -84,57 +89,36 @@ fun PersonalInfoScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.p_info_title), // "Thông tin cá nhân"
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color.White
-                    )
-                },
+                title = { Text(text = "Thông tin cá nhân", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = PrimaryGreen
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryGreen)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            // 🟢 XỬ LÝ HIỂN THỊ THEO TRẠNG THÁI
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when (val state = uiState) {
                 is ProfileUiState.Loading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = PrimaryGreen)
                     }
                 }
-
                 is ProfileUiState.Unauthenticated -> {
-                    // Trường hợp hiếm khi vào màn này mà chưa login (xử lý an toàn)
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Vui lòng đăng nhập lại")
-                    }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Vui lòng đăng nhập lại") }
                 }
-
                 is ProfileUiState.Authenticated -> {
-                    // Hiển thị Form chỉnh sửa
                     PersonalInfoContent(
                         userProfile = state.profile,
                         nameState = name,
+                        majorState = major,
+                        bioState = bio,
                         onNameChange = { name = it },
+                        onMajorChange = { major = it },
+                        onBioChange = { bio = it },
                         isUploadingAvatar = isUploadingAvatar,
                         onAvatarClick = {
                             imagePickerLauncher.launch(
@@ -143,8 +127,13 @@ fun PersonalInfoScreen(
                         },
                         onSaveClick = {
                             if (name.isNotBlank()) {
-                                focusManager.clearFocus() // Ẩn bàn phím
-                                viewModel.updateUserName(name)
+                                focusManager.clearFocus()
+                                // Lưu Tên (Auth)
+                                if (name != state.profile.fullName) {
+                                    viewModel.updateUserName(name)
+                                }
+                                // Lưu Major & Bio (Firestore)
+                                viewModel.updateExtendedInfo(major, bio)
                             } else {
                                 Toast.makeText(context, "Tên không được để trống", Toast.LENGTH_SHORT).show()
                             }
@@ -156,15 +145,27 @@ fun PersonalInfoScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonalInfoContent(
     userProfile: UserProfile,
     nameState: String,
+    majorState: String,
+    bioState: String,
     onNameChange: (String) -> Unit,
+    onMajorChange: (String) -> Unit,
+    onBioChange: (String) -> Unit,
     isUploadingAvatar: Boolean,
     onAvatarClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
+    // Danh sách khoa
+    val majors = listOf(
+        "Công nghệ thông tin", "Kinh tế vận tải", "Điện - Điện tử",
+        "Cơ khí", "Xây dựng", "Kỹ thuật giao thông", "Môi trường", "Khác"
+    )
+    var expandedMajor by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -172,18 +173,15 @@ fun PersonalInfoContent(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // --- CARD CHỨA THÔNG TIN ---
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(2.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 1. AVATAR AREA
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+
+                // 1. AVATAR
                 Box(contentAlignment = Alignment.Center) {
                     AsyncImage(
                         model = userProfile.avatarUrl ?: "https://ui-avatars.com/api/?name=${userProfile.fullName}&background=random",
@@ -195,33 +193,14 @@ fun PersonalInfoContent(
                             .clickable(enabled = !isUploadingAvatar) { onAvatarClick() },
                         contentScale = ContentScale.Crop
                     )
-
-                    // Loading indicator overlay
                     if (isUploadingAvatar) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(100.dp),
-                            color = PrimaryGreen,
-                            strokeWidth = 3.dp
-                        )
+                        CircularProgressIndicator(modifier = Modifier.size(100.dp), color = PrimaryGreen, strokeWidth = 3.dp)
                     }
-
-                    // Icon Camera nhỏ
                     Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 4.dp, y = 4.dp)
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(PrimaryGreen)
-                            .clickable { onAvatarClick() },
+                        modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp).size(32.dp).clip(CircleShape).background(PrimaryGreen).clickable { onAvatarClick() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CameraAlt,
-                            contentDescription = "Change",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Icon(Icons.Default.CameraAlt, "Change", tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
 
@@ -231,58 +210,89 @@ fun PersonalInfoContent(
                 OutlinedTextField(
                     value = userProfile.email,
                     onValueChange = {},
-                    enabled = false, // Không cho sửa email ở đây
-                    label = { Text(stringResource(R.string.acc_sec_email)) },
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                    enabled = false,
+                    label = { Text("Email") },
+                    leadingIcon = { Icon(Icons.Default.Email, null) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                        disabledBorderColor = Color.LightGray,
-                        disabledLabelColor = Color.Gray,
-                        disabledLeadingIconColor = Color.Gray
+                        disabledBorderColor = Color.LightGray
                     )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 3. TÊN HIỂN THỊ (EDITABLE)
+                // 3. TÊN HIỂN THỊ
                 OutlinedTextField(
                     value = nameState,
                     onValueChange = onNameChange,
-                    label = { Text(stringResource(R.string.p_info_name_hint)) },
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    label = { Text("Họ và tên") },
+                    leadingIcon = { Icon(Icons.Default.Person, null) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Words,
-                        imeAction = ImeAction.Done
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryGreen,
-                        focusedLabelColor = PrimaryGreen,
-                        cursorColor = PrimaryGreen,
-                        focusedLeadingIconColor = PrimaryGreen
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen, cursorColor = PrimaryGreen)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 🟢 4. CHUYÊN NGÀNH (DROPDOWN)
+                ExposedDropdownMenuBox(
+                    expanded = expandedMajor,
+                    onExpandedChange = { expandedMajor = !expandedMajor }
+                ) {
+                    OutlinedTextField(
+                        value = majorState,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Khoa / Chuyên ngành") },
+                        leadingIcon = { Icon(Icons.Default.School, null) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMajor) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen)
                     )
+                    ExposedDropdownMenu(
+                        expanded = expandedMajor,
+                        onDismissRequest = { expandedMajor = false }
+                    ) {
+                        majors.forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption) },
+                                onClick = {
+                                    onMajorChange(selectionOption)
+                                    expandedMajor = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 🟢 5. BIO / GIỚI THIỆU
+                OutlinedTextField(
+                    value = bioState,
+                    onValueChange = onBioChange,
+                    label = { Text("Giới thiệu bản thân (Bio)") },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    placeholder = { Text("VD: Đam mê lập trình Mobile...") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen)
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 4. BUTTON SAVE
+                // 6. NÚT LƯU
                 Button(
                     onClick = onSaveClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Save, null, Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.p_info_save),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Lưu thay đổi", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
