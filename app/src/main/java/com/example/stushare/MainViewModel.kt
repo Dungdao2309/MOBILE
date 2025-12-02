@@ -1,4 +1,3 @@
-// File: com.example.stushare.MainViewModel.kt
 package com.example.stushare
 
 import androidx.lifecycle.ViewModel
@@ -14,7 +13,8 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     notificationRepository: NotificationRepository
 ) : ViewModel() {
-    // Luồng đếm tin chưa đọc toàn cục
+
+    // Lấy số lượng tin chưa đọc. Dùng stateIn để giữ trạng thái khi xoay màn hình
     val unreadCount: StateFlow<Int> = notificationRepository.getUnreadCount()
         .stateIn(
             scope = viewModelScope,

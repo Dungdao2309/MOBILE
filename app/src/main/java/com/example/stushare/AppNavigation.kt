@@ -67,11 +67,10 @@ fun AppNavigation(
     val popEnterTransition = slideInHorizontally(animationSpec = tween(duration), initialOffsetX = { -it }) + fadeIn(animationSpec = tween(duration))
     val popExitTransition = slideOutHorizontally(animationSpec = tween(duration), targetOffsetX = { it }) + fadeOut(animationSpec = tween(duration))
 
-    // 🟢 ĐÃ XÓA SCAFFOLD VÀ BOTTOMNAVBAR Ở ĐÂY (Vì MainActivity đã lo rồi)
     NavHost(
         navController = navController,
         startDestination = NavRoute.Intro,
-        modifier = modifier, // Sử dụng modifier được truyền từ MainActivity (đã có padding)
+        modifier = modifier,
         enterTransition = { fadeIn(animationSpec = tween(duration)) },
         exitTransition = { fadeOut(animationSpec = tween(duration)) },
         popEnterTransition = { fadeIn(animationSpec = tween(duration)) },
@@ -117,7 +116,10 @@ fun AppNavigation(
                     }
                 },
                 onLeaderboardClick = { navController.navigate(NavRoute.Leaderboard) },
-                onNotificationClick = { navController.navigate(NavRoute.Notification) }
+                onNotificationClick = { navController.navigate(NavRoute.Notification) },
+
+                // 🟢 MỚI: Xử lý click icon Cộng đồng -> Dẫn tới RequestList
+                onRequestListClick = { navController.navigate(NavRoute.RequestList) }
             )
         }
 
@@ -137,7 +139,8 @@ fun AppNavigation(
         ) {
             SearchResultScreen(
                 onBackClick = { navController.popBackStack() },
-                onDocumentClick = { documentId -> navController.navigate(NavRoute.DocumentDetail(documentId.toString())) }
+                onDocumentClick = { documentId -> navController.navigate(NavRoute.DocumentDetail(documentId.toString())) },
+                onRequestClick = { navController.navigate(NavRoute.RequestList) } // Chuyển sang trang Yêu cầu tài liệu
             )
         }
 
@@ -167,6 +170,7 @@ fun AppNavigation(
             )
         }
 
+        // ... (Phần còn lại của file giữ nguyên như cũ)
         composable<NavRoute.PdfViewer> { backStackEntry ->
             val route = backStackEntry.toRoute<NavRoute.PdfViewer>()
             PdfViewerScreen(
@@ -281,7 +285,6 @@ fun AppNavigation(
             )
         }
 
-        // (Giữ nguyên các màn hình con của Settings)
         composable<NavRoute.AccountSecurity>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }

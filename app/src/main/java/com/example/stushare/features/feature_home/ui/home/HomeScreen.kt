@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -23,10 +24,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.stushare.R
 import com.example.stushare.core.data.models.Document
+import com.example.stushare.core.data.models.DocumentRequest // 🟢 Import
 import com.example.stushare.features.feature_home.ui.components.DocumentCard
 import com.example.stushare.ui.theme.LightGreen
 import com.example.stushare.ui.theme.PrimaryGreen
@@ -49,7 +53,8 @@ fun HomeScreen(
     onCreateRequestClick: () -> Unit,
     onUploadClick: () -> Unit,
     onLeaderboardClick: () -> Unit,
-    onNotificationClick: () -> Unit
+    onNotificationClick: () -> Unit,
+    onRequestListClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -97,7 +102,8 @@ fun HomeScreen(
                     onDocumentClick = onDocumentClick,
                     onUploadClick = onUploadClick,
                     onLeaderboardClick = onLeaderboardClick,
-                    onNotificationClick = onNotificationClick
+                    onNotificationClick = onNotificationClick,
+                    onRequestListClick = onRequestListClick
                 )
             }
 
@@ -119,7 +125,8 @@ private fun HomeContent(
     onDocumentClick: (String) -> Unit,
     onUploadClick: () -> Unit,
     onLeaderboardClick: () -> Unit,
-    onNotificationClick: () -> Unit
+    onNotificationClick: () -> Unit,
+    onRequestListClick: () -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(bottom = 100.dp),
@@ -130,11 +137,12 @@ private fun HomeContent(
             HomeHeaderSection(
                 userName = uiState.userName,
                 avatarUrl = uiState.avatarUrl,
-                unreadCount = uiState.unreadNotificationCount, // 🟢 TRUYỀN SỐ LƯỢNG VÀO ĐÂY
+                unreadCount = uiState.unreadNotificationCount,
                 onSearchClick = onSearchClick,
                 onUploadClick = onUploadClick,
                 onLeaderboardClick = onLeaderboardClick,
-                onNotificationClick = onNotificationClick
+                onNotificationClick = onNotificationClick,
+                onRequestListClick = onRequestListClick
             )
         }
 
@@ -148,7 +156,79 @@ private fun HomeContent(
             )
         }
 
-        // 3. Section: Tài liệu ôn thi
+        // 🟢 3. Section: CỘNG ĐỒNG CẦN GIÚP (MỚI)
+        item {
+            if (uiState.requestDocuments.isNotEmpty()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Tiêu đề
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LiveHelp,
+                                contentDescription = null,
+                                tint = Color(0xFFFF9800), // Màu cam
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Cộng đồng cần giúp",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.Black
+                            )
+                        }
+
+                        Text(
+                            text = "Xem tất cả",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PrimaryGreen,
+                            modifier = Modifier.clickable { onRequestListClick() }
+                        )
+                    }
+
+                    // Danh sách lướt ngang
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(uiState.requestDocuments) { req ->
+                            MiniRequestCard(
+                                request = req,
+                                onClick = { onRequestListClick() } // Bấm vào thì mở danh sách
+                            )
+                        }
+
+                        // Thẻ "Thêm yêu cầu" ở cuối danh sách
+                        item {
+                            Button(
+                                onClick = onRequestListClick,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0F2F1)), // Màu xanh nhạt
+                                modifier = Modifier.size(width = 100.dp, height = 130.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = null,
+                                        tint = PrimaryGreen
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Đăng bài", color = PrimaryGreen, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Section: Tài liệu ôn thi
         item {
             DocumentSection(
                 title = stringResource(R.string.section_exam_review),
@@ -158,7 +238,7 @@ private fun HomeContent(
             )
         }
 
-        // 4. Section: Sách / Giáo trình
+        // 5. Section: Sách / Giáo trình
         item {
             DocumentSection(
                 title = "Sách / Giáo trình",
@@ -168,7 +248,7 @@ private fun HomeContent(
             )
         }
 
-        // 5. Section: Bài giảng / Slide
+        // 6. Section: Bài giảng / Slide
         item {
             DocumentSection(
                 title = "Bài giảng / Slide",
@@ -176,6 +256,76 @@ private fun HomeContent(
                 onViewAllClick = { onViewAllClick("lecture") },
                 onDocumentClick = onDocumentClick
             )
+        }
+    }
+}
+
+// 🟢 COMPONENT THẺ YÊU CẦU MINI
+@Composable
+fun MiniRequestCard(
+    request: DocumentRequest,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(200.dp)
+            .height(130.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F9F5)), // Xanh siêu nhạt
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                // Badge Môn học
+                Surface(
+                    color = PrimaryGreen.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = request.subject,
+                        color = PrimaryGreen,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                // Tiêu đề
+                Text(
+                    text = request.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = Color.Black
+                )
+            }
+
+            // Tác giả
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = Color.Gray
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = request.authorName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -224,16 +374,18 @@ private fun DocumentSection(
     }
 }
 
+// ... (Phần HomeHeaderSection giữ nguyên)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeHeaderSection(
     userName: String,
     avatarUrl: String?,
-    unreadCount: Int = 0, // 🟢 NHẬN SỐ LƯỢNG
+    unreadCount: Int = 0,
     onSearchClick: () -> Unit,
     onUploadClick: () -> Unit,
     onLeaderboardClick: () -> Unit,
-    onNotificationClick: () -> Unit
+    onNotificationClick: () -> Unit,
+    onRequestListClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -267,13 +419,17 @@ fun HomeHeaderSection(
                 )
             }
 
-            // Các nút hành động
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onLeaderboardClick) {
                     Icon(Icons.Default.EmojiEvents, contentDescription = "Leaderboard", tint = Color.White)
                 }
-
-                // 🟢 ICON THÔNG BÁO VỚI CHẤM ĐỎ
+                IconButton(onClick = onRequestListClick) {
+                    Icon(
+                        imageVector = Icons.Default.LiveHelp,
+                        contentDescription = "Cộng đồng",
+                        tint = Color.White
+                    )
+                }
                 Box {
                     IconButton(onClick = onNotificationClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notification", tint = Color.White)
@@ -285,20 +441,16 @@ fun HomeHeaderSection(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(top = 8.dp, end = 8.dp)
-                                .size(10.dp) // Kích thước chấm đỏ
+                                .size(10.dp)
                         )
                     }
                 }
-
                 IconButton(onClick = onUploadClick) {
                     Icon(Icons.Default.CloudUpload, contentDescription = "Upload", tint = Color.White)
                 }
             }
         }
-
         Spacer(Modifier.height(20.dp))
-
-        // Search Bar
         Surface(
             onClick = onSearchClick,
             modifier = Modifier

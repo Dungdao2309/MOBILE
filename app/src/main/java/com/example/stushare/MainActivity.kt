@@ -22,7 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.stushare.core.data.repository.SettingsRepository
 import com.example.stushare.core.navigation.NavRoute
-import com.example.stushare.features.feature_home.ui.components.BottomNavBar // 🟢 QUAN TRỌNG: Import cái này
+import com.example.stushare.features.feature_home.ui.components.BottomNavBar
 import com.example.stushare.ui.theme.StuShareTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -41,7 +41,6 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
 
-            // --- 1. Lắng nghe các cài đặt từ DataStore ---
             val isDarkTheme by settingsRepository.isDarkTheme
                 .collectAsState(initial = isSystemInDarkTheme())
 
@@ -51,7 +50,6 @@ class MainActivity : AppCompatActivity() {
             val languageCode by settingsRepository.languageCode
                 .collectAsState(initial = "vi")
 
-            // --- 2. Đồng bộ Ngôn ngữ hệ thống ---
             LaunchedEffect(languageCode) {
                 val currentLocales = AppCompatDelegate.getApplicationLocales()
                 val newLocale = LocaleListCompat.forLanguageTags(languageCode)
@@ -60,7 +58,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // --- 3. Áp dụng Theme ---
             StuShareTheme(
                 darkTheme = isDarkTheme,
                 fontScale = fontScale
@@ -77,19 +74,16 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // 🟢 MỚI: Lấy MainViewModel để đếm tin nhắn chưa đọc
-    // (Đảm bảo bạn đã tạo file MainViewModel.kt như hướng dẫn trước)
+    // Kết nối ViewModel để lấy dữ liệu Badge
     val mainViewModel: MainViewModel = hiltViewModel()
     val unreadCount by mainViewModel.unreadCount.collectAsState(initial = 0)
 
-    // Danh sách các màn hình sẽ hiển thị BottomBar
     val showBottomBar = listOf(
         NavRoute.Home,
         NavRoute.Search,
         NavRoute.Notification,
         NavRoute.Profile,
-        NavRoute.RequestList,
-        // NavRoute.Upload (Thường thì màn hình Upload nên ẩn BottomBar để tập trung)
+        NavRoute.RequestList
     ).any { route ->
         currentDestination?.hasRoute(route::class) == true
     }
@@ -97,15 +91,13 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                // Cố định fontScale = 1.0 cho BottomBar
                 val currentDensity = LocalDensity.current
                 CompositionLocalProvider(
                     LocalDensity provides Density(density = currentDensity.density, fontScale = 1.0f)
                 ) {
-                    // 🟢 GỌI BottomNavBar XỊN VÀ TRUYỀN SỐ LƯỢNG
                     BottomNavBar(
                         navController = navController,
-                        unreadNotificationCount = unreadCount // Truyền biến này vào
+                        unreadNotificationCount = unreadCount
                     )
                 }
             }
@@ -123,6 +115,3 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
         }
     }
 }
-
-// ❌ ĐÃ XÓA TOÀN BỘ CODE BottomNavBar CŨ Ở ĐÂY
-// Vì chúng ta đã import BottomNavBar từ file 'features/feature_home/ui/components/BottomNavBar.kt'

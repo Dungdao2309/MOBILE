@@ -33,27 +33,31 @@ import com.example.stushare.ui.theme.PrimaryGreen
 @Composable
 fun BottomNavBar(
     navController: NavController,
-    unreadNotificationCount: Int = 0 // 🟢 MỚI: Nhận số lượng tin chưa đọc
+    unreadNotificationCount: Int = 0
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val leftItems = listOf(
-        NavigationItem(stringResource(R.string.nav_home), Icons.Filled.Home, Icons.Outlined.Home, NavRoute.Home),
-        NavigationItem(stringResource(R.string.nav_search), Icons.Filled.Search, Icons.Outlined.Search, NavRoute.Search)
-    )
+    // Tối ưu: Chỉ tạo lại danh sách khi số lượng thông báo thay đổi
+    val leftItems = remember {
+        listOf(
+            NavigationItem(title = "Trang chủ", selectedIcon = Icons.Filled.Home, unselectedIcon = Icons.Outlined.Home, route = NavRoute.Home),
+            NavigationItem(title = "Tìm kiếm", selectedIcon = Icons.Filled.Search, unselectedIcon = Icons.Outlined.Search, route = NavRoute.Search)
+        )
+    }
 
-    val rightItems = listOf(
-        // 🟢 CẬP NHẬT: Truyền số lượng tin chưa đọc vào item Notification
-        NavigationItem(
-            title = stringResource(R.string.notifications),
-            selectedIcon = Icons.Filled.Notifications,
-            unselectedIcon = Icons.Outlined.Notifications,
-            route = NavRoute.Notification,
-            badgeCount = unreadNotificationCount // Gán số lượng vào đây
-        ),
-        NavigationItem(stringResource(R.string.nav_profile), Icons.Filled.Person, Icons.Outlined.Person, NavRoute.Profile)
-    )
+    val rightItems = remember(unreadNotificationCount) {
+        listOf(
+            NavigationItem(
+                title = "Thông báo",
+                selectedIcon = Icons.Filled.Notifications,
+                unselectedIcon = Icons.Outlined.Notifications,
+                route = NavRoute.Notification,
+                badgeCount = unreadNotificationCount
+            ),
+            NavigationItem(title = "Cá nhân", selectedIcon = Icons.Filled.Person, unselectedIcon = Icons.Outlined.Person, route = NavRoute.Profile)
+        )
+    }
 
     Box(
         modifier = Modifier.fillMaxWidth().height(100.dp),
@@ -134,7 +138,6 @@ fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit
             ) { onClick() }
             .padding(8.dp)
     ) {
-        // 🟢 CẬP NHẬT: Dùng BadgedBox để bọc Icon
         BadgedBox(
             badge = {
                 if (item.badgeCount > 0) {
@@ -142,12 +145,10 @@ fun BottomNavItem(item: NavigationItem, isSelected: Boolean, onClick: () -> Unit
                         containerColor = Color.Red, // Màu đỏ nổi bật
                         contentColor = Color.White,
                         modifier = Modifier
-                            .offset(x = (-4).dp, y = 4.dp) // Căn chỉnh vị trí chấm đỏ
-                            .size(8.dp) // Kích thước chấm nhỏ gọn (dạng dot)
-                    ) {
-                        // Nếu muốn hiện số (VD: 1, 2, 99+) thì uncomment dòng dưới
-                        // Text(text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString())
-                    }
+                            // Điều chỉnh offset để chấm nằm góc trên bên phải đẹp hơn
+                            .offset(x = 4.dp, y = (-4).dp)
+                            .size(8.dp)
+                    )
                 }
             }
         ) {
@@ -173,11 +174,10 @@ fun navigateSafe(navController: NavController, route: NavRoute) {
     }
 }
 
-// 🟢 CẬP NHẬT DATA CLASS
 data class NavigationItem(
     val title: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
     val route: NavRoute,
-    val badgeCount: Int = 0 // Mặc định là 0 (không hiện chấm)
+    val badgeCount: Int = 0
 )

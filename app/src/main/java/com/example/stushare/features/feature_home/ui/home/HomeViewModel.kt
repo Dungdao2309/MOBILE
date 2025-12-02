@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stushare.core.data.models.DataFailureException
 import com.example.stushare.core.data.models.Document
+import com.example.stushare.core.data.models.DocumentRequest // 🟢 Import Model Yêu cầu
 import com.example.stushare.core.data.repository.DocumentRepository
-import com.example.stushare.core.data.repository.NotificationRepository // 🟢 MỚI
+import com.example.stushare.core.data.repository.NotificationRepository
+import com.example.stushare.core.data.repository.RequestRepository // 🟢 Import Repo Yêu cầu
 import com.example.stushare.core.domain.usecase.GetExamDocumentsUseCase
 import com.example.stushare.core.domain.usecase.GetNewDocumentsUseCase
 import com.google.firebase.auth.FirebaseAuth
@@ -21,7 +23,10 @@ data class HomeUiState(
     val examDocuments: List<Document> = emptyList(),
     val bookDocuments: List<Document> = emptyList(),
     val lectureDocuments: List<Document> = emptyList(),
-    // 🟢 MỚI: Biến lưu số lượng thông báo chưa đọc
+
+    // 🟢 MỚI: Danh sách yêu cầu từ cộng đồng
+    val requestDocuments: List<DocumentRequest> = emptyList(),
+
     val unreadNotificationCount: Int = 0,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -33,7 +38,8 @@ class HomeViewModel @Inject constructor(
     private val repository: DocumentRepository,
     private val getNewDocumentsUseCase: GetNewDocumentsUseCase,
     private val getExamDocumentsUseCase: GetExamDocumentsUseCase,
-    private val notificationRepository: NotificationRepository, // 🟢 MỚI: Inject Notification Repo
+    private val notificationRepository: NotificationRepository,
+    private val requestRepository: RequestRepository, // 🟢 Inject thêm Repo này
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
@@ -41,19 +47,17 @@ class HomeViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
 
-    // 🟢 CẬP NHẬT: Gộp thêm luồng đếm thông báo (Tổng 8 luồng)
+    // Tổng hợp tất cả các luồng dữ liệu (Bây giờ là 9 luồng)
     val uiState: StateFlow<HomeUiState> = combine(
-        // Thêm .catch {} để nếu lỗi thì trả về danh sách rỗng, không làm treo app
-        getNewDocumentsUseCase().catch { emit(emptyList()) },
-        getExamDocumentsUseCase().catch { emit(emptyList()) },
-        repository.getDocumentsByType("book").catch { emit(emptyList()) },
-        repository.getDocumentsByType("lecture").catch { emit(emptyList()) },
-        _isLoading,
-        _isRefreshing,
-        _errorMessage,                            // 6
-        notificationRepository.getUnreadCount()
-            .catch { emit(0) }       // Nếu lỗi -> coi như 0 thông báo
-            .onStart { emit(0) }// 7 🟢 MỚI: Luồng đếm real-time
+        getNewDocumentsUseCase().catch { emit(emptyList()) },       // 0
+        getExamDocumentsUseCase().catch { emit(emptyList()) },      // 1
+        repository.getDocumentsByType("book").catch { emit(emptyList()) }, // 2
+        repository.getDocumentsByType("lecture").catch { emit(emptyList()) }, // 3
+        _isLoading,                                                 // 4
+        _isRefreshing,                                              // 5
+        _errorMessage,                                              // 6
+        notificationRepository.getUnreadCount().catch { emit(0) }.onStart { emit(0) }, // 7
+        requestRepository.getAllRequests().catch { emit(emptyList()) } // 8 🟢 Luồng Yêu cầu
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val newDocs = args[0] as List<Document>
@@ -67,9 +71,10 @@ class HomeViewModel @Inject constructor(
         val isLoading = args[4] as Boolean
         val isRefreshing = args[5] as Boolean
         val error = args[6] as? String
-
-        // 🟢 Lấy số lượng từ mảng args (vị trí số 7)
         val unreadCount = args[7] as Int
+
+        @Suppress("UNCHECKED_CAST")
+        val requests = args[8] as List<DocumentRequest> // 🟢 Lấy danh sách yêu cầu
 
         val currentUser = firebaseAuth.currentUser
         val name = currentUser?.displayName ?: "Sinh Viên"
@@ -82,7 +87,8 @@ class HomeViewModel @Inject constructor(
             examDocuments = examDocs,
             bookDocuments = bookDocs,
             lectureDocuments = lectureDocs,
-            unreadNotificationCount = unreadCount, // 🟢 Gán vào State
+            requestDocuments = requests.take(10), // 🟢 Chỉ lấy 10 yêu cầu mới nhất để hiển thị Home
+            unreadNotificationCount = unreadCount,
             isLoading = isLoading,
             isRefreshing = isRefreshing,
             errorMessage = error
@@ -108,6 +114,7 @@ class HomeViewModel @Inject constructor(
 
             try {
                 repository.refreshDocumentsIfStale()
+                // RequestRepository dùng Realtime flow nên không cần refresh thủ công
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.value = when (e) {
