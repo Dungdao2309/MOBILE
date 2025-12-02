@@ -25,14 +25,16 @@ sealed interface NavRoute {
     @Serializable data object Notification : NavRoute
     @Serializable data object Leaderboard : NavRoute
 
-    // 🟢 MỚI: Route cho màn hình đọc PDF trong ứng dụng
+    // 🟢 MỚI: Màn hình chi tiết yêu cầu (Chat)
+    @Serializable data class RequestDetail(val requestId: String) : NavRoute
+
     @Serializable
     data class PdfViewer(
         val url: String,
         val title: String
     ) : NavRoute
 
-    // --- SETTINGS & PROFILE ---
+    // --- SETTINGS ---
     @Serializable data object Settings : NavRoute
     @Serializable data object AccountSecurity : NavRoute
     @Serializable data object ChangePassword : NavRoute

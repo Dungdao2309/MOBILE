@@ -53,7 +53,7 @@ import com.example.stushare.features.feature_profile.ui.settings.appearance.Appe
 import com.example.stushare.features.feature_profile.ui.legal.AboutAppScreen
 import com.example.stushare.features.feature_profile.ui.legal.ContactSupportScreen
 import com.example.stushare.features.feature_profile.ui.legal.ReportViolationScreen
-
+import com.example.stushare.feature_request.ui.detail.RequestDetailScreen
 @Composable
 fun AppNavigation(
     navController: NavHostController,
@@ -199,7 +199,17 @@ fun AppNavigation(
                         Toast.makeText(context, "Cần đăng nhập!", Toast.LENGTH_SHORT).show()
                         navController.navigate(NavRoute.Login)
                     }
+                },
+                onNavigateToDetail = { requestId ->
+                    navController.navigate(NavRoute.RequestDetail(requestId))
                 }
+            )
+        }
+        composable<NavRoute.RequestDetail> {
+            // RequestDetailScreen tự lấy ID từ SavedStateHandle trong ViewModel
+            // nên ta không cần truyền tham số trực tiếp ở đây cũng được
+            RequestDetailScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 

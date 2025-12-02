@@ -20,7 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,19 +28,20 @@ import com.example.stushare.core.data.models.DocumentRequest
 import com.example.stushare.features.feature_request.ui.list.RequestListViewModel
 import com.example.stushare.ui.theme.LightGreen
 import com.example.stushare.ui.theme.PrimaryGreen
-import com.example.stushare.ui.theme.createShimmerBrush // Đảm bảo đã import cái này
+import com.example.stushare.ui.theme.createShimmerBrush
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RequestListScreen(
     onBackClick: () -> Unit,
     onCreateRequestClick: () -> Unit,
+    // 🟢 MỚI: Callback để chuyển sang màn hình chi tiết
+    onNavigateToDetail: (String) -> Unit,
     viewModel: RequestListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        // Nút tạo yêu cầu (+) ở góc dưới phải
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onCreateRequestClick,
@@ -56,10 +56,10 @@ fun RequestListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9F9F9)) // Nền xám nhạt
+                .background(Color(0xFFF9F9F9))
                 .padding(paddingValues)
         ) {
-            // 1. HEADER MÀU XANH
+            // Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -88,10 +88,9 @@ fun RequestListScreen(
                 )
             }
 
-            // 2. LOGIC HIỂN THỊ
+            // List Content
             when {
                 uiState.isLoading -> {
-                    // Gọi hàm Skeleton (được định nghĩa ở cuối file này)
                     RequestListSkeleton()
                 }
                 uiState.requests.isEmpty() -> {
@@ -104,7 +103,11 @@ fun RequestListScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(uiState.requests) { request ->
-                            RequestCard(request = request, onReplyClick = { /* TODO */ })
+                            RequestCard(
+                                request = request,
+                                // 🟢 CẬP NHẬT: Gọi callback chuyển trang kèm ID
+                                onReplyClick = { onNavigateToDetail(request.id) }
+                            )
                         }
                     }
                 }
@@ -211,6 +214,7 @@ fun RequestCard(
     }
 }
 
+// ... (Giữ nguyên phần EmptyRequestState và Skeleton)
 @Composable
 fun EmptyRequestState(onCreateClick: () -> Unit) {
     Column(
@@ -253,8 +257,6 @@ fun EmptyRequestState(onCreateClick: () -> Unit) {
     }
 }
 
-// --- CÁC HÀM SKELETON (Phần bạn có thể đang thiếu) ---
-
 @Composable
 fun RequestListSkeleton() {
     LazyColumn(
@@ -262,113 +264,32 @@ fun RequestListSkeleton() {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(5) {
-            RequestCardSkeleton()
-        }
+        items(5) { RequestCardSkeleton() }
     }
 }
 
 @Composable
 fun RequestCardSkeleton() {
-    // Sử dụng hàm tạo hiệu ứng shimmer từ file Shimmer.kt
     val brush = createShimmerBrush()
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Badge giả
-            Box(
-                modifier = Modifier
-                    .width(100.dp)
-                    .height(24.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(brush)
-            )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Box(modifier = Modifier.width(100.dp).height(24.dp).clip(RoundedCornerShape(8.dp)).background(brush))
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Tiêu đề giả
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(brush)
-            )
+            Box(modifier = Modifier.fillMaxWidth(0.8f).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush))
             Spacer(modifier = Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(brush)
-            )
-
+            Box(modifier = Modifier.fillMaxWidth(0.6f).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush))
             Spacer(modifier = Modifier.height(16.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Color.LightGray.copy(alpha = 0.3f))
-            )
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.LightGray.copy(alpha = 0.3f)))
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Footer giả
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(brush)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .width(80.dp)
-                            .height(14.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(brush)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .width(60.dp)
-                        .height(32.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(brush)
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Box(modifier = Modifier.width(100.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                Box(modifier = Modifier.width(60.dp).height(32.dp).clip(RoundedCornerShape(50)).background(brush))
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun RequestListScreenPreview() {
-    val sampleRequest = DocumentRequest(
-        title = "Xin đề thi cuối kỳ",
-        subject = "Toán cao cấp",
-        description = "Cần tìm đề...",
-        authorName = "Test User"
-    )
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF9F9F9))) {
-        // Mock Header for preview
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-                .background(PrimaryGreen)
-        )
-        RequestCard(request = sampleRequest, onReplyClick = {})
     }
 }
