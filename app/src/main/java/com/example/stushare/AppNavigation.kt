@@ -55,6 +55,10 @@ import com.example.stushare.features.feature_profile.ui.legal.ContactSupportScre
 import com.example.stushare.features.feature_profile.ui.legal.ReportViolationScreen
 import com.example.stushare.feature_request.ui.detail.RequestDetailScreen
 
+// 🟢 ADMIN IMPORTS
+import com.example.stushare.features.feature_admin.ui.AdminScreen
+import com.example.stushare.features.feature_admin.ui.AdminReportScreen
+
 @Composable
 fun AppNavigation(
     navController: NavHostController,
@@ -77,7 +81,9 @@ fun AppNavigation(
         popEnterTransition = { fadeIn(animationSpec = tween(duration)) },
         popExitTransition = { fadeOut(animationSpec = tween(duration)) }
     ) {
-        // ... (Các màn hình Auth & Main Features giữ nguyên) ...
+        // ==========================================
+        // 1. AUTHENTICATION
+        // ==========================================
         composable<NavRoute.Intro> { ManHinhChao(navController) }
         composable<NavRoute.Onboarding> { ManHinhGioiThieu(navController) }
         composable<NavRoute.Login> { ManHinhDangNhap(navController) }
@@ -89,6 +95,9 @@ fun AppNavigation(
             ManHinhXacThucOTP(navController, args.verificationId)
         }
 
+        // ==========================================
+        // 2. MAIN FEATURES
+        // ==========================================
         composable<NavRoute.Home> {
             val context = LocalContext.current
             HomeScreen(
@@ -255,10 +264,41 @@ fun AppNavigation(
                 onNavigateToLogin = { navController.navigate(NavRoute.Login) },
                 onNavigateToRegister = { navController.navigate(NavRoute.Register) },
                 onDocumentClick = { docId -> navController.navigate(NavRoute.DocumentDetail(docId)) },
-
-                // 🟢 THÊM: Truyền hành động cho Empty State
                 onNavigateToUpload = { navController.navigate(NavRoute.Upload) },
-                onNavigateToHome = { navController.navigate(NavRoute.Home) }
+                onNavigateToHome = { navController.navigate(NavRoute.Home) },
+
+                // Điều hướng tới Admin Dashboard
+                onNavigateToAdmin = { navController.navigate(NavRoute.AdminDashboard) }
+            )
+        }
+
+        // ==========================================
+        // 4. ADMIN FEATURES (Đã cập nhật hoàn chỉnh)
+        // ==========================================
+
+        // 🟢 Màn hình Dashboard (Menu Admin)
+        composable<NavRoute.AdminDashboard>(
+            enterTransition = { enterTransition }, exitTransition = { exitTransition },
+            popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
+        ) {
+            AdminScreen(
+                onBackClick = { navController.popBackStack() },
+                // 👇 Sự kiện chuyển sang màn hình danh sách báo cáo
+                onNavigateToReports = { navController.navigate(NavRoute.AdminReports) }
+            )
+        }
+
+        // 🟢 Màn hình Danh sách Báo cáo Vi phạm
+        composable<NavRoute.AdminReports>(
+            enterTransition = { enterTransition }, exitTransition = { exitTransition },
+            popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
+        ) {
+            AdminReportScreen(
+                onBackClick = { navController.popBackStack() },
+                // 👇 Sự kiện bấm vào một báo cáo để xem tài liệu gốc
+                onDocumentClick = { documentId ->
+                    navController.navigate(NavRoute.DocumentDetail(documentId))
+                }
             )
         }
 
@@ -287,7 +327,6 @@ fun AppNavigation(
             )
         }
 
-        // ... (Giữ nguyên các màn hình Settings con: AccountSecurity, PersonalInfo, v.v...)
         composable<NavRoute.AccountSecurity>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }

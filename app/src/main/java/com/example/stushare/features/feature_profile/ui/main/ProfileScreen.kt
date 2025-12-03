@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -51,7 +52,7 @@ import com.example.stushare.R
 import com.example.stushare.features.feature_profile.ui.model.DocItem
 import com.example.stushare.features.feature_profile.ui.model.UserProfile
 import com.example.stushare.ui.theme.PrimaryGreen
-import com.example.stushare.ui.theme.createShimmerBrush // 🟢 Đảm bảo import cái này
+import com.example.stushare.ui.theme.createShimmerBrush
 
 @Composable
 fun ProfileScreen(
@@ -62,7 +63,9 @@ fun ProfileScreen(
     onNavigateToRegister: () -> Unit,
     onDocumentClick: (String) -> Unit = {},
     onNavigateToUpload: () -> Unit,
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    // 🟢 THÊM: Callback vào Admin
+    onNavigateToAdmin: () -> Unit
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -88,62 +91,39 @@ fun ProfileScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // 🟢 Dùng Crossfade để chuyển đổi trạng thái mượt mà (Fade in/out)
         Crossfade(targetState = uiState, label = "ProfileState", animationSpec = tween(400)) { state ->
             when (state) {
-                is ProfileUiState.Loading -> {
-                    // 🟢 THAY THẾ: Gọi Skeleton thay vì CircularProgressIndicator
-                    ProfileSkeleton()
-                }
-
-                is ProfileUiState.Unauthenticated -> {
-                    UnauthenticatedProfileContent(
-                        onLoginClick = onNavigateToLogin,
-                        onRegisterClick = onNavigateToRegister
-                    )
-                }
-
-                is ProfileUiState.Authenticated -> {
-                    AuthenticatedProfileContent(
-                        userProfile = state.profile,
-                        totalDocs = state.totalDocs,
-                        totalDownloads = state.totalDownloads,
-                        memberRank = state.memberRank,
-                        publishedDocs = publishedDocs,
-                        savedDocs = savedDocs,
-                        downloadedDocs = downloadedDocs,
-                        isRefreshing = isRefreshing,
-                        onRefresh = { viewModel.refreshData() },
-                        onNavigateToSettings = onNavigateToSettings,
-                        onNavigateToLeaderboard = onNavigateToLeaderboard,
-                        onDeleteDoc = { docId -> viewModel.deletePublishedDocument(docId) },
-                        onAvatarClick = {
-                            singlePhotoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        onDocumentClick = onDocumentClick,
-                        onNavigateToUpload = onNavigateToUpload,
-                        onNavigateToHome = onNavigateToHome
-                    )
-                }
+                is ProfileUiState.Loading -> ProfileSkeleton()
+                is ProfileUiState.Unauthenticated -> UnauthenticatedProfileContent(onNavigateToLogin, onNavigateToRegister)
+                is ProfileUiState.Authenticated -> AuthenticatedProfileContent(
+                    userProfile = state.profile,
+                    totalDocs = state.totalDocs,
+                    totalDownloads = state.totalDownloads,
+                    memberRank = state.memberRank,
+                    publishedDocs = publishedDocs,
+                    savedDocs = savedDocs,
+                    downloadedDocs = downloadedDocs,
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.refreshData() },
+                    onNavigateToSettings = onNavigateToSettings,
+                    onNavigateToLeaderboard = onNavigateToLeaderboard,
+                    onDeleteDoc = { docId -> viewModel.deletePublishedDocument(docId) },
+                    onAvatarClick = { singlePhotoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    onDocumentClick = onDocumentClick,
+                    onNavigateToUpload = onNavigateToUpload,
+                    onNavigateToHome = onNavigateToHome,
+                    onNavigateToAdmin = onNavigateToAdmin // 🟢 Truyền xuống
+                )
             }
         }
 
         if (isUploadingAvatar) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = PrimaryGreen)
             }
         }
     }
 }
-
-// ... (Giữ nguyên các hàm AuthenticatedProfileContent, ProfileHeader, StatisticsRow, v.v...)
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -163,7 +143,8 @@ fun AuthenticatedProfileContent(
     onAvatarClick: () -> Unit,
     onDocumentClick: (String) -> Unit,
     onNavigateToUpload: () -> Unit,
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    onNavigateToAdmin: () -> Unit // 🟢 Nhận callback
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabTitles = listOf(
@@ -176,58 +157,43 @@ fun AuthenticatedProfileContent(
     Box(modifier = Modifier.fillMaxSize().pullRefresh(pullRefreshState)) {
         Column(modifier = Modifier.fillMaxSize()) {
             val userName = stringResource(R.string.profile_hello, userProfile.fullName)
-            val displayMajor = if (userProfile.major.isNotBlank() && userProfile.major != "Chưa cập nhật") {
-                userProfile.major
-            } else {
-                stringResource(R.string.profile_dept)
+            val displayMajor = if (userProfile.major.isNotBlank() && userProfile.major != "Chưa cập nhật") userProfile.major else stringResource(R.string.profile_dept)
+
+            ProfileHeader(userName, displayMajor, userProfile.avatarUrl, onSettingsClick = onNavigateToSettings, onLeaderboardClick = onNavigateToLeaderboard, onAvatarClick = onAvatarClick)
+
+            // 🟢 NÚT ADMIN (Chỉ hiện nếu role là admin)
+            if (userProfile.role == "admin") {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .clickable { onNavigateToAdmin() },
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)), // Đỏ nhạt
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = Color.Red)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("TRUY CẬP TRANG QUẢN TRỊ", fontWeight = FontWeight.Bold, color = Color.Red)
+                    }
+                }
             }
 
-            ProfileHeader(
-                userName = userName,
-                subText = displayMajor,
-                avatarUrl = userProfile.avatarUrl,
-                onSettingsClick = onNavigateToSettings,
-                onLeaderboardClick = onNavigateToLeaderboard,
-                onAvatarClick = onAvatarClick
-            )
-
-            StatisticsRow(
-                totalDocs = totalDocs,
-                totalDownloads = totalDownloads,
-                memberRank = memberRank
-            )
-
+            StatisticsRow(totalDocs, totalDownloads, memberRank)
             Divider(color = Color.LightGray.copy(alpha = 0.3f))
 
-            TabRow(
-                selectedTabIndex = selectedTabIndex,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = PrimaryGreen,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]), color = PrimaryGreen)
-                }
-            ) {
+            TabRow(selectedTabIndex, containerColor = MaterialTheme.colorScheme.surface, contentColor = PrimaryGreen, indicator = { TabRowDefaults.SecondaryIndicator(Modifier.tabIndicatorOffset(it[selectedTabIndex]), color = PrimaryGreen) }) {
                 tabTitles.forEachIndexed { index, title ->
-                    val isSelected = selectedTabIndex == index
-                    Tab(
-                        selected = isSelected,
-                        onClick = { selectedTabIndex = index },
-                        text = {
-                            Text(title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) PrimaryGreen else MaterialTheme.colorScheme.onSurface)
-                        }
-                    )
+                    Tab(selected = selectedTabIndex == index, onClick = { selectedTabIndex = index }, text = { Text(title, fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == index) PrimaryGreen else MaterialTheme.colorScheme.onSurface) })
                 }
             }
 
-            // 🟢 Animation chuyển đổi nội dung Tab
             Crossfade(targetState = selectedTabIndex, animationSpec = tween(300), label = "TabContent") { tabIndex ->
-                val currentList = when (tabIndex) {
-                    0 -> publishedDocs
-                    1 -> savedDocs
-                    2 -> downloadedDocs
-                    else -> emptyList()
-                }
-
+                val currentList = when (tabIndex) { 0 -> publishedDocs; 1 -> savedDocs; 2 -> downloadedDocs; else -> emptyList() }
                 if (currentList.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize().padding(top = 32.dp)) {
                         when (tabIndex) {
@@ -237,29 +203,18 @@ fun AuthenticatedProfileContent(
                         }
                     }
                 } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(currentList, key = { it.documentId }) { doc -> // Thêm key để animation tốt hơn
-                            DocItemRow(
-                                item = doc,
-                                isDeletable = tabIndex == 0,
-                                onDelete = { onDeleteDoc(doc.documentId) },
-                                onClick = { onDocumentClick(doc.documentId) }
-                            )
-                        }
-                        item { Spacer(modifier = Modifier.height(80.dp)) }
+                    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(currentList, key = { it.documentId }) { doc -> DocItemRow(doc, tabIndex == 0, { onDeleteDoc(doc.documentId) }, { onDocumentClick(doc.documentId) }) }
+                        item { Spacer(Modifier.height(80.dp)) }
                     }
                 }
             }
         }
-        PullRefreshIndicator(refreshing = isRefreshing, state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter), contentColor = PrimaryGreen)
+        PullRefreshIndicator(isRefreshing, pullRefreshState, Modifier.align(Alignment.TopCenter), contentColor = PrimaryGreen)
     }
 }
 
-// ... (Giữ nguyên các Component StatisticsRow, StatItem, ProfileEmptyState, UnauthenticatedProfileContent, ProfileHeader, DocItemRow)
-
+// ... (Các component con ở dưới giữ nguyên như file cũ, không thay đổi)
 @Composable
 fun ProfileEmptyState(message: String, buttonText: String, icon: ImageVector, onClick: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -348,79 +303,28 @@ fun DocItemRow(item: DocItem, isDeletable: Boolean, onDelete: () -> Unit, onClic
     }
 }
 
-// 🟢 🟢 🟢 CÁC COMPONENT SKELETON (SHIMMER) 🟢 🟢 🟢
-
 @Composable
 fun ProfileSkeleton() {
     val brush = createShimmerBrush()
     Column(modifier = Modifier.fillMaxSize()) {
-        // 1. Header Skeleton
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RoundedCornerShape(0.dp),
-            elevation = CardDefaults.cardElevation(2.dp),
-            modifier = Modifier.padding(bottom = 1.dp)
-        ) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(0.dp), elevation = CardDefaults.cardElevation(2.dp), modifier = Modifier.padding(bottom = 1.dp)) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp).padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                // Avatar giả
                 Box(modifier = Modifier.size(64.dp).clip(CircleShape).background(brush))
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    // Tên giả
                     Box(modifier = Modifier.width(150.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush))
                     Spacer(Modifier.height(8.dp))
-                    // Khoa giả
                     Box(modifier = Modifier.width(100.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(brush))
                     Spacer(Modifier.height(8.dp))
-                    // Nút rank giả
                     Box(modifier = Modifier.width(80.dp).height(24.dp).clip(RoundedCornerShape(8.dp)).background(brush))
                 }
             }
         }
-
-        // 2. Stats Skeleton
         Row(modifier = Modifier.fillMaxWidth().background(Color.White).padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            repeat(3) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(modifier = Modifier.width(30.dp).height(24.dp).clip(RoundedCornerShape(4.dp)).background(brush))
-                    Spacer(Modifier.height(4.dp))
-                    Box(modifier = Modifier.width(40.dp).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
-                }
-            }
+            repeat(3) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Box(modifier = Modifier.width(30.dp).height(24.dp).clip(RoundedCornerShape(4.dp)).background(brush)); Spacer(Modifier.height(4.dp)); Box(modifier = Modifier.width(40.dp).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush)) } }
         }
-
         Divider(color = Color.LightGray.copy(alpha = 0.3f))
-
-        // 3. Tab Skeleton
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            repeat(3) {
-                Box(modifier = Modifier.width(80.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush))
-            }
-        }
-
-        // 4. List Skeleton
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(5) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().height(80.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(2.dp)
-                ) {
-                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(brush))
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Box(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(brush))
-                            Spacer(Modifier.height(8.dp))
-                            Box(modifier = Modifier.fillMaxWidth(0.4f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
-                        }
-                    }
-                }
-            }
-        }
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) { repeat(3) { Box(modifier = Modifier.width(80.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush)) } }
+        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(5) { Card(modifier = Modifier.fillMaxWidth().height(80.dp), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp)) { Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(brush)); Spacer(Modifier.width(12.dp)); Column(modifier = Modifier.weight(1f)) { Box(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(brush)); Spacer(Modifier.height(8.dp)); Box(modifier = Modifier.fillMaxWidth(0.4f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush)) } } } } }
     }
 }

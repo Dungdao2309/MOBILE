@@ -40,7 +40,7 @@ sealed interface ProfileUiState {
 class ProfileViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val storage: FirebaseStorage,
-    private val firestore: FirebaseFirestore // 🟢 Inject Firestore
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -53,7 +53,6 @@ class ProfileViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
 
-    // Theo dõi User Auth
     private val authStateFlow: Flow<FirebaseUser?> = callbackFlow {
         val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             trySend(firebaseAuth.currentUser)
@@ -63,12 +62,12 @@ class ProfileViewModel @Inject constructor(
         awaitClose { auth.removeAuthStateListener(authStateListener) }
     }.flowOn(Dispatchers.IO)
 
-    // 🟢 2. UI STATE CHÍNH (Kết hợp Auth + Firestore)
+    // 2. UI STATE CHÍNH
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<ProfileUiState> = authStateFlow
         .flatMapLatest { user ->
             if (user != null) {
-                // Lấy thông tin mở rộng từ Firestore
+                // Lấy thông tin user từ Firestore (Major, Bio, Role)
                 val userDocFlow = callbackFlow {
                     val docRef = firestore.collection("users").document(user.uid)
                     val listener = docRef.addSnapshotListener { snapshot, _ ->
@@ -77,7 +76,7 @@ class ProfileViewModel @Inject constructor(
                     awaitClose { listener.remove() }
                 }
 
-                // Lấy danh sách tài liệu để tính thống kê
+                // Lấy danh sách tài liệu
                 val docsFlow = documentRepository.getDocumentsByAuthor(user.uid)
 
                 combine(userDocFlow, docsFlow) { snapshot, documents ->
@@ -92,17 +91,19 @@ class ProfileViewModel @Inject constructor(
                         else -> "Thành viên mới"
                     }
 
-                    // Lấy major và bio từ Firestore Document (nếu có)
+                    // 🟢 CẬP NHẬT: Lấy thêm Role
                     val major = snapshot?.getString("major") ?: "Chưa cập nhật"
                     val bio = snapshot?.getString("bio") ?: ""
+                    val role = snapshot?.getString("role") ?: "user" // Mặc định là user
 
                     val profile = UserProfile(
                         id = user.uid,
                         fullName = user.displayName ?: user.email ?: "Sinh viên UTH",
                         email = user.email ?: "",
                         avatarUrl = user.photoUrl?.toString(),
-                        major = major, // 🟢
-                        bio = bio      // 🟢
+                        major = major,
+                        bio = bio,
+                        role = role // 🟢 Gán role vào model
                     )
 
                     ProfileUiState.Authenticated(
@@ -122,8 +123,6 @@ class ProfileViewModel @Inject constructor(
             ProfileUiState.Loading
         )
 
-    // ... (Giữ nguyên các luồng publishedDocuments, savedDocuments, downloadedDocuments) ...
-    // Bạn copy lại phần này từ file cũ nhé, không thay đổi gì.
     @OptIn(ExperimentalCoroutinesApi::class)
     val publishedDocuments: StateFlow<List<DocItem>> = authStateFlow
         .flatMapLatest { user ->
@@ -190,30 +189,18 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // 🟢 MỚI: Hàm cập nhật thông tin mở rộng (Major, Bio)
     fun updateExtendedInfo(major: String, bio: String) {
         val uid = auth.currentUser?.uid ?: return
-
-        val data = hashMapOf(
-            "major" to major,
-            "bio" to bio
-        )
-
+        val data = hashMapOf("major" to major, "bio" to bio)
         viewModelScope.launch {
             try {
-                // Dùng SetOptions.merge() để không ghi đè mất các trường khác (nếu có)
-                firestore.collection("users").document(uid)
-                    .set(data, SetOptions.merge())
-                    .await()
+                firestore.collection("users").document(uid).set(data, SetOptions.merge()).await()
                 _updateMessage.emit("Đã cập nhật thông tin!")
             } catch (e: Exception) {
                 _updateMessage.emit("Lỗi: ${e.message}")
             }
         }
     }
-
-    // ... (Giữ nguyên các hàm uploadAvatar, updateUserName, changePassword, updateEmail, deletePublishedDocument, signOut) ...
-    // Bạn copy lại các hàm này từ file cũ nhé.
 
     fun uploadAvatar(uri: Uri) {
         val user = auth.currentUser ?: return
@@ -258,17 +245,13 @@ class ProfileViewModel @Inject constructor(
     fun changePassword(currentPass: String, newPass: String) {
         val user = auth.currentUser ?: return
         if (user.email == null) return
-
         val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
         user.reauthenticate(credential).addOnCompleteListener { authTask ->
             if (authTask.isSuccessful) {
                 user.updatePassword(newPass).addOnCompleteListener { updateTask ->
                     viewModelScope.launch {
-                        if (updateTask.isSuccessful) {
-                            _updateMessage.emit("Đổi mật khẩu thành công!")
-                        } else {
-                            _updateMessage.emit("Lỗi: ${updateTask.exception?.message}")
-                        }
+                        if (updateTask.isSuccessful) _updateMessage.emit("Đổi mật khẩu thành công!")
+                        else _updateMessage.emit("Lỗi: ${updateTask.exception?.message}")
                     }
                 }
             } else {
@@ -280,17 +263,13 @@ class ProfileViewModel @Inject constructor(
     fun updateEmail(currentPass: String, newEmail: String) {
         val user = auth.currentUser ?: return
         if (user.email == null) return
-
         val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
         user.reauthenticate(credential).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 user.updateEmail(newEmail).addOnCompleteListener { updateTask ->
                     viewModelScope.launch {
-                        if (updateTask.isSuccessful) {
-                            _updateMessage.emit("Đổi email thành công!")
-                        } else {
-                            _updateMessage.emit("Lỗi: ${updateTask.exception?.message}")
-                        }
+                        if (updateTask.isSuccessful) _updateMessage.emit("Đổi email thành công!")
+                        else _updateMessage.emit("Lỗi: ${updateTask.exception?.message}")
                     }
                 }
             } else {
@@ -303,18 +282,12 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val result = documentRepository.deleteDocument(docId)
-                if (result.isSuccess) {
-                    _updateMessage.emit("Đã xóa tài liệu")
-                } else {
-                    _updateMessage.emit("Xóa thất bại")
-                }
+                if (result.isSuccess) _updateMessage.emit("Đã xóa tài liệu") else _updateMessage.emit("Xóa thất bại")
             } catch (e: Exception) {
                 _updateMessage.emit("Lỗi khi xóa: ${e.message}")
             }
         }
     }
 
-    fun signOut() {
-        auth.signOut()
-    }
+    fun signOut() { auth.signOut() }
 }

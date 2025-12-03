@@ -7,7 +7,7 @@ import com.example.stushare.core.data.models.Document
 import com.example.stushare.core.data.repository.DocumentRepository
 import com.example.stushare.core.utils.AndroidDownloader
 import com.example.stushare.core.utils.AndroidFileOpener
-import com.google.firebase.auth.FirebaseAuth // 🟢 Import Auth
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ class DocumentDetailViewModel @Inject constructor(
     private val repository: DocumentRepository,
     private val downloader: AndroidDownloader,
     private val fileOpener: AndroidFileOpener,
-    private val auth: FirebaseAuth // 🟢 Inject Auth để kiểm tra quyền xóa
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
@@ -46,7 +46,6 @@ class DocumentDetailViewModel @Inject constructor(
     private val _snackbarEvent = MutableSharedFlow<String>()
     val snackbarEvent = _snackbarEvent.asSharedFlow()
 
-    // 🟢 Lấy ID người dùng hiện tại để UI so sánh
     val currentUserId = auth.currentUser?.uid
 
     fun getDocumentById(documentId: String) {
@@ -85,7 +84,6 @@ class DocumentDetailViewModel @Inject constructor(
         }
     }
 
-    // 🟢 MỚI: Xóa bình luận
     fun deleteComment(documentId: String, commentId: String) {
         viewModelScope.launch {
             val result = repository.deleteComment(documentId, commentId)
@@ -145,6 +143,18 @@ class DocumentDetailViewModel @Inject constructor(
                 getDocumentById(documentId)
             } else {
                 _snackbarEvent.emit("Lỗi đánh giá: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
+    // 🟢 MỚI: Hàm xử lý báo cáo
+    fun onReportDocument(documentId: String, documentTitle: String, reason: String) {
+        viewModelScope.launch {
+            val result = repository.reportDocument(documentId, documentTitle, reason)
+            if (result.isSuccess) {
+                _snackbarEvent.emit("Đã gửi báo cáo. Cảm ơn đóng góp của bạn! ✅")
+            } else {
+                _snackbarEvent.emit("Lỗi gửi báo cáo: ${result.exceptionOrNull()?.message}")
             }
         }
     }

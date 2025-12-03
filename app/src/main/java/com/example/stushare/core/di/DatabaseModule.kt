@@ -49,18 +49,18 @@ object DatabaseModule {
         return database.userDao()
     }
 
-    // 🟢 1. CẬP NHẬT: Cung cấp NotificationRepository (Cần thêm Firestore + Auth)
+    // --- REPOSITORIES (Cung cấp các Repo chưa chuyển sang RepositoryModule) ---
+
     @Provides
     @Singleton
     fun provideNotificationRepository(
         notificationDao: NotificationDao,
-        firestore: FirebaseFirestore, // Thêm cái này
-        auth: FirebaseAuth            // Thêm cái này
+        firestore: FirebaseFirestore,
+        auth: FirebaseAuth
     ): NotificationRepository {
         return NotificationRepositoryImpl(notificationDao, firestore, auth)
     }
 
-    // 🟢 2. CẬP NHẬT: Cung cấp DocumentRepository (Cần thêm NotificationRepository)
     @Provides
     @Singleton
     fun provideDocumentRepository(
@@ -70,27 +70,21 @@ object DatabaseModule {
         storage: FirebaseStorage,
         firestore: FirebaseFirestore,
         notificationRepository: NotificationRepository,
-        auth: com.google.firebase.auth.FirebaseAuth // 🟢 1. Thêm tham số này vào hàm
+        auth: FirebaseAuth
     ): DocumentRepository {
-        return com.example.stushare.core.data.repository.DocumentRepositoryImpl(
+        return DocumentRepositoryImpl(
             documentDao,
             apiService,
             settingsRepository,
             storage,
             firestore,
             notificationRepository,
-            auth // 🟢 2. Truyền biến auth vào Constructor ở cuối cùng
+            auth
         )
     }
 
-    @Provides
-    @Singleton
-    fun provideRequestRepository(
-        firestore: FirebaseFirestore,
-        firebaseAuth: FirebaseAuth
-    ): RequestRepository {
-        return RequestRepositoryImpl(firestore, firebaseAuth)
-    }
+    // ❌ ĐÃ XÓA: provideRequestRepository
+    // Vì đã được bind bên RepositoryModule.kt -> Sửa lỗi DuplicateBindings thành công!
 
     @Provides
     @Singleton

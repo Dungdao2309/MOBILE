@@ -3,9 +3,11 @@ package com.example.stushare.feature_document_detail.ui.detail
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -16,8 +18,9 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Close // 🟢 Import icon Xóa
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Flag // 🟢 Icon Báo cáo
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
@@ -59,8 +62,9 @@ fun DocumentDetailScreen(
     val comments by viewModel.comments.collectAsStateWithLifecycle()
     val isSendingComment by viewModel.isSendingComment.collectAsStateWithLifecycle()
 
-    // 🟢 MỚI: Trạng thái hiển thị hộp thoại đánh giá
     var showRatingDialog by remember { mutableStateOf(false) }
+    // 🟢 MỚI: Trạng thái hiển thị hộp thoại báo cáo
+    var showReportDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -87,6 +91,18 @@ fun DocumentDetailScreen(
                     }
                 },
                 actions = {
+                    // 🟢 Nút Báo cáo (Report)
+                    IconButton(onClick = {
+                        if (isLoggedIn) showReportDialog = true
+                        else onLoginRequired()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Flag,
+                            contentDescription = "Báo cáo",
+                            tint = Color.Red // Màu đỏ cảnh báo
+                        )
+                    }
+
                     IconButton(onClick = {
                         if (isLoggedIn) {
                             if (uiState is DetailUiState.Success) {
@@ -144,12 +160,10 @@ fun DocumentDetailScreen(
                     DocumentDetailContentWithComments(
                         document = state.document,
                         comments = comments,
-                        // 🟢 Sự kiện bấm vào ngôi sao
                         onRatingClick = {
                             if (isLoggedIn) showRatingDialog = true
                             else onLoginRequired()
                         },
-                        // 🟢 Truyền ID user để kiểm tra quyền xóa comment
                         currentUserId = viewModel.currentUserId,
                         onDeleteComment = { commentId ->
                             viewModel.deleteComment(state.document.id, commentId)
@@ -159,7 +173,7 @@ fun DocumentDetailScreen(
             }
         }
 
-        // 🟢 MỚI: Hộp thoại đánh giá
+        // Hộp thoại đánh giá
         if (showRatingDialog && uiState is DetailUiState.Success) {
             val doc = (uiState as DetailUiState.Success).document
             RatingDialog(
@@ -170,7 +184,86 @@ fun DocumentDetailScreen(
                 }
             )
         }
+
+        // 🟢 MỚI: Hộp thoại báo cáo
+        if (showReportDialog && uiState is DetailUiState.Success) {
+            val doc = (uiState as DetailUiState.Success).document
+            ReportDialog(
+                onDismiss = { showReportDialog = false },
+                onSubmit = { reason ->
+                    viewModel.onReportDocument(doc.id, doc.title, reason)
+                    showReportDialog = false
+                }
+            )
+        }
     }
+}
+
+// 🟢 MỚI: Composable ReportDialog tách riêng
+@Composable
+fun ReportDialog(
+    onDismiss: () -> Unit,
+    onSubmit: (String) -> Unit
+) {
+    val reasons = listOf(
+        "Nội dung sai sự thật/Không chính xác",
+        "Vi phạm bản quyền",
+        "Nội dung phản cảm/Spam",
+        "Tài liệu bị lỗi không xem được",
+        "Khác"
+    )
+    // Mặc định chọn lý do đầu tiên
+    var selectedReason by remember { mutableStateOf(reasons[0]) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Báo cáo tài liệu", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text("Vui lòng chọn lý do:", fontSize = 14.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                reasons.forEach { reason ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (reason == selectedReason),
+                                onClick = { selectedReason = reason }
+                            )
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (reason == selectedReason),
+                            onClick = { selectedReason = reason },
+                            colors = RadioButtonDefaults.colors(selectedColor = Color.Red)
+                        )
+                        Text(
+                            text = reason,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(selectedReason) },
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+            ) {
+                Text("Gửi báo cáo", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy", color = Color.Gray)
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
 }
 
 @Composable
@@ -178,8 +271,8 @@ fun DocumentDetailContentWithComments(
     document: Document,
     comments: List<CommentEntity>,
     onRatingClick: () -> Unit,
-    currentUserId: String?, // 🟢 Thêm tham số này
-    onDeleteComment: (String) -> Unit // 🟢 Thêm tham số này
+    currentUserId: String?,
+    onDeleteComment: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -201,7 +294,6 @@ fun DocumentDetailContentWithComments(
             Text("Tác giả: ${document.author}", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // 🟢 Ngôi sao có thể click được
                 Surface(
                     onClick = onRatingClick,
                     shape = RoundedCornerShape(8.dp),
@@ -232,7 +324,6 @@ fun DocumentDetailContentWithComments(
             items(comments) { comment ->
                 CommentItem(
                     comment = comment,
-                    // 🟢 Kiểm tra xem có phải comment của mình không
                     isOwnComment = comment.userId == currentUserId,
                     onDelete = { onDeleteComment(comment.id) }
                 )
@@ -243,7 +334,6 @@ fun DocumentDetailContentWithComments(
     }
 }
 
-// 🟢 MỚI: Component Hộp thoại đánh giá
 @Composable
 fun RatingDialog(
     onDismiss: () -> Unit,
@@ -269,7 +359,6 @@ fun RatingDialog(
     )
 }
 
-// 🟢 MỚI: Component Thanh sao
 @Composable
 fun RatingBar(
     currentRating: Int,
@@ -299,8 +388,8 @@ fun RatingBar(
 @Composable
 fun CommentItem(
     comment: CommentEntity,
-    isOwnComment: Boolean, // 🟢 Nhận biết comment chính chủ
-    onDelete: () -> Unit   // 🟢 Hàm xóa
+    isOwnComment: Boolean,
+    onDelete: () -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         AsyncImage(
@@ -325,7 +414,6 @@ fun CommentItem(
                     Text(dateStr, fontSize = 12.sp, color = Color.Gray)
                 }
 
-                // 🟢 CHỈ HIỆN NÚT XÓA NẾU LÀ COMMENT CỦA MÌNH
                 if (isOwnComment) {
                     IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                         Icon(

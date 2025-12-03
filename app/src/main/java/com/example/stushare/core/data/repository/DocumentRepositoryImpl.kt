@@ -53,7 +53,7 @@ class DocumentRepositoryImpl @Inject constructor(
 
 
     // ==========================================
-    // 2. ĐỒNG BỘ DỮ LIỆU (SYNC) - 🟢 CẬP NHẬT MẠNH MẼ
+    // 2. ĐỒNG BỘ DỮ LIỆU (SYNC)
     // ==========================================
 
     override suspend fun refreshDocuments(): Result<Unit> {
@@ -77,7 +77,7 @@ class DocumentRepositoryImpl @Inject constructor(
                             .get().await()
                     }
 
-                    // 3. 🟢 THÊM: Sách (book)
+                    // 3. Sách
                     val bookDeferred = async {
                         firestore.collection("documents")
                             .whereEqualTo("type", "book")
@@ -86,7 +86,7 @@ class DocumentRepositoryImpl @Inject constructor(
                             .get().await()
                     }
 
-                    // 4. 🟢 THÊM: Bài giảng (lecture)
+                    // 4. Bài giảng
                     val lectureDeferred = async {
                         firestore.collection("documents")
                             .whereEqualTo("type", "lecture")
@@ -97,15 +97,15 @@ class DocumentRepositoryImpl @Inject constructor(
 
                     val recentSnapshot = recentDeferred.await()
                     val examSnapshot = examDeferred.await()
-                    val bookSnapshot = bookDeferred.await()       // Chờ tải xong
-                    val lectureSnapshot = lectureDeferred.await() // Chờ tải xong
+                    val bookSnapshot = bookDeferred.await()
+                    val lectureSnapshot = lectureDeferred.await()
 
                     val allDocs = mutableSetOf<Document>()
 
                     recentSnapshot.documents.forEach { doc -> mapFirestoreToDocument(doc)?.let { allDocs.add(it) } }
                     examSnapshot.documents.forEach { doc -> mapFirestoreToDocument(doc)?.let { allDocs.add(it) } }
-                    bookSnapshot.documents.forEach { doc -> mapFirestoreToDocument(doc)?.let { allDocs.add(it) } }    // Gộp vào
-                    lectureSnapshot.documents.forEach { doc -> mapFirestoreToDocument(doc)?.let { allDocs.add(it) } } // Gộp vào
+                    bookSnapshot.documents.forEach { doc -> mapFirestoreToDocument(doc)?.let { allDocs.add(it) } }
+                    lectureSnapshot.documents.forEach { doc -> mapFirestoreToDocument(doc)?.let { allDocs.add(it) } }
 
                     documentDao.insertAllDocuments(allDocs.toList())
                     settingsRepository.updateLastRefreshTimestamp()
@@ -126,15 +126,9 @@ class DocumentRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Hàm tiện ích: Chuyển đổi dữ liệu từ Firestore sang Model Document
-     * 🟢 ĐÃ FIX: Lấy thêm uploadedAt gán vào createdAt để sắp xếp đúng
-     */
     private fun mapFirestoreToDocument(doc: DocumentSnapshot): Document? {
         val data = doc.data ?: return null
         val title = data["title"] as? String ?: ""
-
-        // Lấy thời gian upload từ Firebase
         val uploadedAt = (data["uploadedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
 
         return Document(
@@ -150,8 +144,6 @@ class DocumentRepositoryImpl @Inject constructor(
             author = data["author"] as? String ?: data["authorName"] as? String ?: "Ẩn danh",
             courseCode = data["courseCode"] as? String ?: "GEN",
             authorId = data["authorId"] as? String,
-
-            // 🟢 QUAN TRỌNG: Gán thời gian để sắp xếp mục "Mới tải lên"
             createdAt = uploadedAt
         )
     }
@@ -168,14 +160,12 @@ class DocumentRepositoryImpl @Inject constructor(
                 val currentUserId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Bạn chưa đăng nhập!"))
                 val uploaderName = auth.currentUser?.displayName ?: "Ẩn danh"
 
-                // 1. Upload File
                 val docExtension = if (mimeType.contains("pdf")) "pdf" else "docx"
                 val docFileName = "documents/${UUID.randomUUID()}.$docExtension"
                 val docRef = storage.reference.child(docFileName)
                 docRef.putFile(fileUri).await()
                 val fileDownloadUrl = docRef.downloadUrl.await().toString()
 
-                // 2. Upload Cover Image
                 val imageDownloadUrl = if (coverUri != null) {
                     val imageFileName = "covers/${UUID.randomUUID()}.jpg"
                     val imageRef = storage.reference.child(imageFileName)
@@ -183,9 +173,8 @@ class DocumentRepositoryImpl @Inject constructor(
                     imageRef.downloadUrl.await().toString()
                 } else "https://picsum.photos/seed/${System.currentTimeMillis()}/200/300"
 
-                // 3. Lưu Metadata lên Firestore
                 val newId = UUID.randomUUID().toString()
-                val timestamp = System.currentTimeMillis() // Thời điểm upload
+                val timestamp = System.currentTimeMillis()
 
                 val documentMap = hashMapOf(
                     "id" to newId,
@@ -205,16 +194,14 @@ class DocumentRepositoryImpl @Inject constructor(
                 )
                 firestore.collection("documents").document(newId).set(documentMap).await()
 
-                // 4. Lưu vào Local DB
                 val newLocalDocument = Document(
                     id = newId, title = title, normalizedTitle = title.removeAccents(), type = type, description = description,
                     imageUrl = imageDownloadUrl, fileUrl = fileDownloadUrl, downloads = 0, rating = 0.0,
                     author = author, courseCode = "GEN", authorId = currentUserId,
-                    createdAt = timestamp // 🟢 Lưu luôn thời gian vào Local
+                    createdAt = timestamp
                 )
                 documentDao.insertDocument(newLocalDocument)
 
-                // 5. Tạo thông báo
                 notificationRepository.createNotification(
                     targetUserId = currentUserId,
                     title = "Đăng tải thành công ✅",
@@ -247,6 +234,32 @@ class DocumentRepositoryImpl @Inject constructor(
                 }
                 Result.success(Unit)
             } catch (e: Exception) { Result.failure(e) }
+        }
+    }
+
+    // 🟢 MỚI: Triển khai hàm Report Document
+    override suspend fun reportDocument(documentId: String, documentTitle: String, reason: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val userId = auth.currentUser?.uid ?: return@withContext Result.failure(Exception("Bạn cần đăng nhập để báo cáo."))
+                val reporterEmail = auth.currentUser?.email ?: "No email"
+
+                val reportData = hashMapOf(
+                    "documentId" to documentId,
+                    "documentTitle" to documentTitle, // Lưu tên để Admin dễ nhìn
+                    "reporterId" to userId,
+                    "reporterEmail" to reporterEmail,
+                    "reason" to reason,
+                    "timestamp" to System.currentTimeMillis(),
+                    "status" to "pending" // Trạng thái chờ Admin duyệt
+                )
+
+                // Lưu vào collection "reports"
+                firestore.collection("reports").add(reportData).await()
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
     }
 
@@ -371,15 +384,12 @@ class DocumentRepositoryImpl @Inject constructor(
                     transaction.update(docRef, "ratingCount", newCount)
                 }.await()
 
-                // Cập nhật Local DB
                 val currentLocalDoc = documentDao.getDocumentById(documentId).first()
                 if (currentLocalDoc != null) {
-                    // 🟢 SỬA LỖI: Dùng finalNewAverage thay vì 0.0
                     val updatedDoc = currentLocalDoc.copy(rating = finalNewAverage)
                     documentDao.insertDocument(updatedDoc)
                 }
 
-                // Gửi thông báo
                 if (docAuthorId.isNotEmpty() && docAuthorId != userId) {
                     notificationRepository.createNotification(
                         targetUserId = docAuthorId,
@@ -393,7 +403,8 @@ class DocumentRepositoryImpl @Inject constructor(
                 Result.success(Unit)
             } catch (e: Exception) { Result.failure(e) }
         }
-    }    override fun getDocumentsByAuthor(authorId: String): Flow<List<Document>> = callbackFlow {
+    }
+    override fun getDocumentsByAuthor(authorId: String): Flow<List<Document>> = callbackFlow {
         val query = firestore.collection("documents").whereEqualTo("authorId", authorId)
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) { close(error); return@addSnapshotListener }

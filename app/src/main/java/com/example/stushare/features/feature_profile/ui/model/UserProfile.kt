@@ -5,8 +5,9 @@ data class UserProfile(
     val fullName: String,
     val email: String,
     val avatarUrl: String? = null,
-
-    // 🟢 MỚI: Thông tin mở rộng
     val major: String = "Chưa cập nhật",
-    val bio: String = ""
+    val bio: String = "",
+
+    // 🟢 MỚI: Phân quyền (mặc định là 'user', admin sẽ là 'admin')
+    val role: String = "user"
 )

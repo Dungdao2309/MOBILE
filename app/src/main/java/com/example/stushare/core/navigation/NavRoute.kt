@@ -24,15 +24,15 @@ sealed interface NavRoute {
     @Serializable data object Upload : NavRoute
     @Serializable data object Notification : NavRoute
     @Serializable data object Leaderboard : NavRoute
-
-    // 🟢 MỚI: Màn hình chi tiết yêu cầu (Chat)
     @Serializable data class RequestDetail(val requestId: String) : NavRoute
+    @Serializable data class PdfViewer(val url: String, val title: String) : NavRoute
 
-    @Serializable
-    data class PdfViewer(
-        val url: String,
-        val title: String
-    ) : NavRoute
+    // --- ADMIN FEATURES ---
+    // 🟢 Dashboard tổng quan (Thống kê)
+    @Serializable data object AdminDashboard : NavRoute
+
+    // 🟢 Danh sách báo cáo vi phạm (Cần thêm cái này để click vào nút "Duyệt tài liệu")
+    @Serializable data object AdminReports : NavRoute
 
     // --- SETTINGS ---
     @Serializable data object Settings : NavRoute

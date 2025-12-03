@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Interface định nghĩa các hành vi thao tác dữ liệu.
- * Đã được phân nhóm rõ ràng để dễ implement.
  */
 interface DocumentRepository {
 
@@ -21,10 +20,6 @@ interface DocumentRepository {
 
     fun searchDocuments(query: String): Flow<List<Document>>
 
-    /**
-     * Lấy tài liệu theo phân loại.
-     * Dùng cho tính năng: "Tài liệu ôn thi" (exam_review), "Bài giảng", v.v.
-     */
     fun getDocumentsByType(type: String): Flow<List<Document>>
 
     fun getDocumentsByAuthor(authorId: String): Flow<List<Document>>
@@ -36,15 +31,8 @@ interface DocumentRepository {
     // 2. ĐỒNG BỘ DỮ LIỆU (SYNC)
     // ==========================================
 
-    /**
-     * Force refresh: Bắt buộc tải lại từ Server.
-     * Trả về Result để ViewModel biết thành công hay thất bại.
-     */
     suspend fun refreshDocuments(): Result<Unit>
 
-    /**
-     * Smart refresh: Chỉ tải lại nếu dữ liệu đã cũ (hết hạn cache).
-     */
     suspend fun refreshDocumentsIfStale()
 
 
@@ -61,13 +49,15 @@ interface DocumentRepository {
         mimeType: String,
         coverUri: Uri?,
         author: String,
-        type: String // 🟢 THÊM THAM SỐ NÀY
+        type: String
     ): Result<String>
 
     suspend fun deleteDocument(documentId: String): Result<Unit>
 
-    // Cập nhật: Thêm Result để xử lý trường hợp mất mạng khi đếm lượt tải
     suspend fun incrementDownloadCount(documentId: String, authorId: String?, docTitle: String): Result<Unit>
+
+    // 🟢 MỚI: Hàm báo cáo tài liệu
+    suspend fun reportDocument(documentId: String, documentTitle: String, reason: String): Result<Unit>
 
 
     // ==========================================
