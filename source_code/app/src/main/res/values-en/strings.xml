@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StuShare</string>
+
+    <string name="home_greeting">Hello,</string>
+    <string name="home_search_hint">Search for documents</string>
+    <string name="section_new_uploads">Recently Uploaded</string>
+    <string name="section_exam_prep">Exam Preparation</string>
+    <string name="btn_view_all">View All</string>
+    <string name="error_no_data">No data available.</string>
+    <string name="msg_pull_to_refresh">Pull to refresh.</string>
+    <string name="btn_retry">Retry</string>
+
+    <string name="btn_download">Download Now</string>
+
+    <string name="about_stushare">About StuShare</string>
+    <string name="about_version_title">Version</string>
+    <string name="about_version_subtitle">1.0.0 (Beta)</string>
+    <string name="about_terms">Terms of Use</string>
+    <string name="about_privacy">Privacy Policy</string>
+
+    <string name="acc_sec_header">Account &amp; Security</string>
+    <string name="acc_sec_account_group">Account</string>
+    <string name="acc_sec_personal_info">Personal Information</string>
+    <string name="acc_sec_username_label">Username</string>
+    <string name="acc_sec_phone">Phone Number</string>
+    <string name="acc_sec_email">Email</string>
+    <string name="acc_sec_not_linked">Not Linked</string>
+    <string name="acc_sec_security_group">Security</string>
+    <string name="acc_sec_password">Password</string>
+    <string name="acc_sec_disable_group">Deactivation</string>
+    <string name="acc_sec_delete_acc">Delete Account</string>
+
+    <string name="appearance_language">Appearance &amp; Language</string>
+    <string name="appearance_dark_mode">Dark Mode</string>
+    <string name="appearance_font_size">Font Size</string>
+    <string name="appearance_language_header">Language</string>
+    <string name="appearance_change_language">App Language</string>
+
+    <string name="font_small">Small</string>
+    <string name="font_medium">Medium</string>
+    <string name="font_large">Large</string>
+
+    <string name="current_language">Vietnamese</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="cp_title">Change Password</string>
+    <string name="cp_current">Current Password</string>
+    <string name="cp_new">New Password</string>
+    <string name="cp_confirm">Confirm New Password</string>
+    <string name="cp_btn">Update Password</string>
+    <string name="cp_success">Password changed successfully!</string>
+
+    <string name="support_header">Contact Support</string>
+    <string name="support_online_channel">Online Support Channels</string>
+    <string name="support_chat_title">Chat with Support</string>
+    <string name="support_chat_desc">Average response time: 5 mins</string>
+    <string name="support_email_title">Send Email Request</string>
+
+    <string name="support_other_channel">Other Channels</string>
+    <string name="support_hotline_title">Hotline</string>
+    <string name="support_hotline_desc">1900 1234 (8:00 AM – 5:00 PM)</string>
+    <string name="support_faq_title">FAQ</string>
+    <string name="support_faq_desc">View common issues</string>
+
+    <string name="edit_save_btn">Save Changes</string>
+    <string name="edit_success">Updated successfully</string>
+
+    <string name="title_edit_phone">Update Phone Number</string>
+    <string name="label_edit_phone">New Phone Number</string>
+    <string name="title_edit_email">Update Email</string>
+    <string name="label_edit_email">Email Address</string>
+
+    <string name="notifications">Notifications</string>
+    <string name="noti_set_section_enable">Enable/Disable Notifications</string>
+    <string name="noti_set_section_in_app">In-App Notifications</string>
+    <string name="noti_set_sound">Play Sound</string>
+    <string name="noti_set_vibrate">Vibrate</string>
+
+    <string name="p_info_title">Personal Information</string>
+    <string name="p_info_name_hint">Display Name</string>
+    <string name="p_info_dob_hint">Date of Birth</string>
+    <string name="p_info_gender_label">Gender</string>
+    <string name="gender_male">Male</string>
+    <string name="gender_female">Female</string>
+    <string name="p_info_save">Save Changes</string>
+    <string name="p_info_save_success">Info saved: %1$s</string>
+
+    <string name="privacy_header">Privacy Policy</string>
+    <string name="privacy_content">
+        StuShare is committed to protecting your privacy.\n\n
+        1. INFORMATION COLLECTION\n
+        We collect the following information to provide services:\n
+        - Personal Information: Name, Email, Profile Picture (when you log in).\n
+        - Usage Data: Download history, saved document list.\n\n
+        2. PURPOSE OF USE\n
+        - Account management and user authentication.\n
+        - Improving experience and suggesting relevant documents.\n
+        - Sending notifications about important updates.\n\n
+        3. DATA SECURITY\n
+        All your data is encrypted and stored securely on servers. We apply advanced technical measures to prevent unauthorized access.\n\n
+        4. INFORMATION SHARING\n
+        We commit NOT to sell, trade, or share your personal information with third parties, unless required by law enforcement.\n\n
+        5. YOUR RIGHTS\n
+        You have the right to access, correct, or request deletion of your personal data at any time through the Settings section in the application.
+    </string>
+
+    <string name="terms_header">Terms of Use</string>
+    <string name="terms_content">
+        Welcome to StuShare - The Learning Document Sharing Community.\n\n
+        1. ACCEPTANCE OF TERMS\n
+        By downloading, installing, and using StuShare, you agree to comply with these Terms of Use. If you do not agree, please do not use the application.\n\n
+        2. INTELLECTUAL PROPERTY RIGHTS\n
+        Any document you upload to StuShare must be owned by you or you must have the legal right to share it. You are fully responsible for the copyright of the documents you upload.\n\n
+        3. CODE OF CONDUCT\n
+        - Do not post content that violates laws, is obscene, incites violence, or insults others.\n
+        - No spam or unauthorized advertising.\n
+        - Respect the community and other members.\n\n
+        4. DISCLAIMER\n
+        StuShare is an intermediary sharing platform. We are not responsible for the accuracy or reliability of documents uploaded by users.\n\n
+        5. VIOLATION HANDLING\n
+        We reserve the right to remove any content that violates terms and lock user accounts without prior notice.
+    </string>
+
+    <string name="switch_acc_header">Switch Account</string>
+    <string name="switch_acc_add">Add New Account</string>
+    <string name="switch_acc_switched">Switched to: %1$s</string>
+    <string name="switch_acc_active">Active</string>
+    <string name="switch_acc_current_section">Current Account</string>
+    <string name="switch_acc_saved_section">Saved Accounts</string>
+    <string name="switch_acc_options_section">Options</string>
+    <string name="switch_acc_login_other">Log in to another account</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="acc_security">Account &amp; Security</string>
+    <string name="contact_support">Contact Support</string>
+    <string name="report_violation">Report Violation</string>
+    <string name="switch_account">Switch Account</string>
+
+    <string name="logout">Logout</string>
+    <string name="logout_success">Logged out successfully</string>
+
+    <string name="profile_tab_posted">Posted</string>
+    <string name="profile_tab_saved">Saved</string>
+    <string name="profile_tab_downloaded">Downloaded</string>
+    <string name="profile_documents">Documents</string>
+    <string name="profile_downloads">Downloads</string>
+    <string name="rank_new_member">New Member</string>
+    <string name="rank_title">Rank</string>
+    <string name="profile_dept">Faculty / Department</string>
+    <string name="subject_mechanical">Mechanical Engineering</string>
+    <string name="profile_guest">Guest</string>
+    <string name="profile_hello">Hello, %1$s</string>
+    <string name="profile_empty_list">List is empty</string>
+    <string name="profile_view_leaderboard">View Leaderboard</string>
+    <string name="profile_delete_success">Deleted successfully</string>
+    <string name="feature_not_supported">Feature not supported</string>
+    <string name="delete">Delete</string>
+
+    <string name="report_header">Report Violation</string>
+    <string name="report_question">What issue are you facing?</string>
+    <string name="report_reason_spam">Spam / Junk Content</string>
+    <string name="report_reason_fake">False Information</string>
+    <string name="report_reason_copyright">Copyright Infringement</string>
+    <string name="report_reason_harassment">Harassment / Hate Speech</string>
+    <string name="report_reason_other">Other Reason</string>
+
+    <string name="report_desc_label">Details (Optional)</string>
+    <string name="report_desc_hint">Enter more details to help us support you better…</string>
+
+    <string name="report_btn_submit">Submit Report</string>
+    <string name="report_success">Report submitted. Thank you!</string>
+    <string name="report_error_select">Please select a reason</string>
+
+    <string name="upload_header">Upload Document</string>
+    <string name="upload_no_file">No file selected</string>
+    <string name="upload_selected_file">Selected file:</string>
+    <string name="upload_choose_btn">Choose Document (PDF, Word)</string>
+    <string name="upload_title_hint">Document Title</string>
+    <string name="upload_desc_hint">Description (Optional)</string>
+    <string name="upload_error_msg">Please select a file and enter a title!</string>
+    <string name="upload_btn">Upload Now</string>
+    <string name="upload_btn_loading">Uploading…</string>
+    
+    <string name="sugg_law">General Law</string>
+    <string name="sugg_se">Software Engineering</string>
+    <string name="sugg_it">IT Faculty</string>
+    <string name="sugg_exam">#exam</string>
+    
+    <string name="search_title">Search</string>
+    <string name="search_hint">Enter document name, subject...</string>
+    <string name="search_recent">Recent Searches</string>
+    <string name="clear_all">Clear All</string>
+    <string name="search_suggestion">Suggestions for you</string>
+    <string name="back">Back</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_profile">Profile</string>
+
+    <string name="section_exam_review">Exam Review</string>
+    <string name="community_help">Community Help</string>
+    <string name="exam_documents">Exam Prep</string>
+    <string name="books_curriculum">Books/Curricula</string>
+    <string name="lectures_slides">Lectures/Slides</string>
+    
+    <string name="view_all">View All</string>
+
+    <string name="search_placeholder">Search documents, subjects...</string>
+    <string name="subjects">Subjects</string>
+
+    <string name="upload_document_title">Upload Document</string>
+
+    <string name="notifications_title">Notifications</string>
+
+    <string name="create_new_request">New Request</string>
+    <string name="post_request">Post</string>
+    
+    <string name="desc_leaderboard">Leaderboard</string>
+    <string name="desc_community">Community</string>
+    <string name="desc_notification">Notifications</string>
+    <string name="desc_upload">Upload</string>
+
+    <string name="search_result_title">Results for \"%1$s\"</string>
+    <string name="search_result_count">Found %1$d documents</string>
+    <string name="search_empty_title">Sorry, no documents found</string>
+    <string name="search_empty_desc">We couldn\'t find any results for \"%1$s\".</string>
+    <string name="btn_request_help">Ask the community for help!</string>
+    <string name="error_message">An error occurred: %1$s</string>
+    <string name="content_desc_back">Back</string>
+    <string name="content_desc_not_found">Not found</string>
+    <string name="content_desc_error">Error</string>
+
+    <string name="noti_screen_title">Notifications</string>
+    <string name="noti_unread_count">%1$d unread messages</string>
+    <string name="noti_mark_all_read">Read all</string>
+    <string name="noti_empty">No notifications yet</string>
+    <string name="content_desc_delete">Delete</string>
+
+    <string name="time_just_now">Just now</string>
+    <string name="time_minutes_ago">%1$d mins ago</string>
+    <string name="time_hours_ago">%1$d hours ago</string>
+    <string name="time_days_ago">%1$d days ago</string>
+    <string name="faq_header">Frequently Asked Questions</string>
+
+    <string name="faq_q1">How do I upload a document?</string>
+    <string name="faq_a1">On the Home screen, tap the \'+\' button or Upload icon. Then select a PDF file, enter a description, and tap \'Post Now\'.</string>
+
+    <string name="faq_q2">What if I forgot my password?</string>
+    <string name="faq_a2">On the Login screen, select \'Forgot Password?\'. The system will send you an email with instructions to reset it.</string>
+
+    <string name="faq_q3">Why was my document rejected?</string>
+    <string name="faq_a3">Documents may be rejected for copyright violations, inappropriate content, poor quality, or incorrect PDF format.</string>
+
+    <string name="faq_q4">How do I report bad content?</string>
+    <string name="faq_a4">In the document details, tap the \'...\' icon at the top and select \'Report Violation\'. We will review it within 24 hours.</string>
+
+    <string name="faq_q5">Can I change my phone number?</string>
+    <string name="faq_a5">Yes. Go to Settings -> Account Security -> Tap on Phone Number to update and verify via OTP.</string>
+
+    <string name="faq_q6">Does StuShare charge fees?</string>
+    <string name="faq_a6">Currently, StuShare is a free sharing platform for the student community.</string>
+
+    <string name="err_login_required">Please log in again</string>
+    <string name="err_name_empty">Name cannot be empty</string>
+    <string name="label_fullname">Full Name</string>
+    <string name="label_major">Faculty / Major</string>
+    <string name="label_bio">Bio</string>
+    <string name="hint_bio">Ex: Mobile development enthusiast...</string>
+    <string name="change_avatar">Change</string>
+
+    <string name="major_it">Information Technology</string>
+    <string name="major_transport_eco">Transport Economics</string>
+    <string name="major_electrical">Electrical - Electronics</string>
+    <string name="major_mechanical">Mechanical Engineering</string>
+    <string name="major_construction">Civil Engineering</string>
+    <string name="major_transport_eng">Transportation Engineering</string>
+    <string name="major_environment">Environment</string>
+    <string name="major_other">Other</string>
+
+    <string name="hint_phone_input">Enter phone number (10 digits)</string>
+    <string name="err_phone_empty">Please enter phone number</string>
+    <string name="err_phone_invalid">Invalid phone number (10 digits required)</string>
+    <string name="err_phone_same">New phone number is the same as the old one</string>
+    <string name="err_input_empty">Please enter information</string>
+
+    <string name="msg_sending_otp">Sending OTP to %1$s...</string>
+    <string name="msg_otp_sent">OTP sent!</string>
+    <string name="title_enter_otp">Enter Verification Code</string>
+    <string name="desc_otp_sent">OTP code has been sent to your phone number.</string>
+    <string name="label_otp_input">OTP Code (6 digits)</string>
+    <string name="btn_confirm">Confirm</string>
+    <string name="err_otp_length">OTP must be 6 digits</string>
+    <string name="err_email_same">New email is the same as the current one</string>
+    
+    <string name="title_security_auth">Security Authentication</string>
+    <string name="desc_enter_password">Please enter your current password to continue:</string>
+    <string name="msg_logout_success">Logged out successfully</string>
+    <string name="msg_login_required">Login required!</string>
+    <string name="err_generic">Error: %1$s</string>
+</resources>
