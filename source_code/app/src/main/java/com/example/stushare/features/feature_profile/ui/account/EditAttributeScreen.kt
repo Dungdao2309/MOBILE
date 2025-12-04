@@ -2,6 +2,7 @@ package com.example.stushare.features.feature_profile.ui.account
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -11,6 +12,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.stushare.R
 import com.example.stushare.ui.theme.PrimaryGreen
@@ -22,10 +25,14 @@ fun EditAttributeScreen(
     initialValue: String,
     label: String,
     onBackClick: () -> Unit,
-    onSaveClick: (String) -> Unit // 🟢 New callback to return data
+    onSaveClick: (String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text // Mặc định là Text
 ) {
     val context = LocalContext.current
     var value by remember { mutableStateOf(initialValue) }
+
+    // String resources
+    val errEmpty = stringResource(R.string.err_input_empty)
 
     // Dynamic theme colors
     val backgroundColor = MaterialTheme.colorScheme.background
@@ -39,7 +46,7 @@ fun EditAttributeScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.content_desc_back),
                             tint = Color.White
                         )
                     }
@@ -55,6 +62,11 @@ fun EditAttributeScreen(
                 onValueChange = { value = it },
                 label = { Text(label) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = keyboardType, // Sử dụng loại bàn phím truyền vào
+                    imeAction = ImeAction.Done
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = onSurfaceColor,
                     unfocusedTextColor = onSurfaceColor,
@@ -67,10 +79,9 @@ fun EditAttributeScreen(
             Button(
                 onClick = {
                     if (value.isNotBlank()) {
-                        // 🟢 Call the callback with the new value
                         onSaveClick(value)
                     } else {
-                        Toast.makeText(context, "Vui lòng nhập thông tin", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, errEmpty, Toast.LENGTH_SHORT).show()
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),

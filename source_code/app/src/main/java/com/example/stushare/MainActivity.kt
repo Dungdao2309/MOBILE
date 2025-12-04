@@ -39,18 +39,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 🟢 CẤU HÌNH LẠI TRÀN VIỀN (EDGE-TO-EDGE)
+        // CẤU HÌNH TRÀN VIỀN
         enableEdgeToEdge(
-            // Thanh trạng thái (Trên cùng): Trong suốt, Icon màu Trắng (SystemBarStyle.dark)
-            // Dùng .dark(...) nghĩa là nền tối -> icon sẽ tự chuyển sang sáng
-            statusBarStyle = SystemBarStyle.dark(
-                Color.TRANSPARENT
-            ),
-            // Thanh điều hướng (Dưới cùng): Trong suốt
-            navigationBarStyle = SystemBarStyle.light(
-                Color.TRANSPARENT,
-                Color.TRANSPARENT
-            )
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         )
 
         setContent {
@@ -62,14 +54,25 @@ class MainActivity : AppCompatActivity() {
             val fontScale by settingsRepository.fontScale
                 .collectAsState(initial = 1.0f)
 
-            val languageCode by settingsRepository.languageCode
-                .collectAsState(initial = "vi") // Hoặc null nếu muốn sửa lỗi nhấp nháy như trước
+            // 🔴 SỬA LỖI NHẤP NHÁY:
+            // 1. Đặt initial = null để không bị nhận sai giá trị mặc định khi vừa khởi động lại
+            val languageCodeState by settingsRepository.languageCode
+                .collectAsState(initial = null) 
 
-            LaunchedEffect(languageCode) {
-                val currentLocales = AppCompatDelegate.getApplicationLocales()
-                val newLocale = LocaleListCompat.forLanguageTags(languageCode)
-                if (currentLocales.toLanguageTags() != languageCode) {
-                    AppCompatDelegate.setApplicationLocales(newLocale)
+            // 2. Logic cập nhật ngôn ngữ an toàn hơn
+            LaunchedEffect(languageCodeState) {
+                languageCodeState?.let { code ->
+                    if (code.isNotEmpty()) {
+                        val currentLocales = AppCompatDelegate.getApplicationLocales()
+                        val currentTag = currentLocales.toLanguageTags() // Ví dụ: "en-US" hoặc "vi-VN"
+
+                        // Chỉ set lại nếu ngôn ngữ thực sự KHÁC với cái đang hiển thị
+                        // Dùng startsWith để "en" khớp với "en-US" -> Tránh lặp vô hạn
+                        if (!currentTag.startsWith(code, ignoreCase = true)) {
+                            val newLocale = LocaleListCompat.forLanguageTags(code)
+                            AppCompatDelegate.setApplicationLocales(newLocale)
+                        }
+                    }
                 }
             }
 
@@ -89,7 +92,6 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // Kết nối ViewModel để lấy dữ liệu Badge
     val mainViewModel: MainViewModel = hiltViewModel()
     val unreadCount by mainViewModel.unreadCount.collectAsState(initial = 0)
 
@@ -116,12 +118,13 @@ fun MainAppScreen(windowSizeClass: WindowSizeClass) {
                     )
                 }
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background 
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(bottom = innerPadding.calculateBottomPadding()) 
         ) {
             AppNavigation(
                 navController = navController,
