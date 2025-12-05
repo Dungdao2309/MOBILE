@@ -31,8 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -56,23 +56,28 @@ fun PersonalInfoScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isUploadingAvatar by viewModel.isUploadingAvatar.collectAsStateWithLifecycle()
 
-    // Local State
+    // Local State để quản lý dữ liệu đang nhập liệu
     var name by remember { mutableStateOf("") }
     var major by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
 
-    // Các chuỗi resource cần dùng trong logic (Toast)
+    // [QUAN TRỌNG] Biến cờ để đảm bảo dữ liệu chỉ load 1 lần khi vào màn hình
+    var isInitialized by remember { mutableStateOf(false) }
+
     val errNameEmpty = stringResource(R.string.err_name_empty)
 
+    // Cập nhật dữ liệu vào TextField khi load xong profile (CHỈ LẦN ĐẦU)
     LaunchedEffect(uiState) {
-        if (uiState is ProfileUiState.Authenticated) {
+        if (uiState is ProfileUiState.Authenticated && !isInitialized) {
             val profile = (uiState as ProfileUiState.Authenticated).profile
             name = profile.fullName
             major = profile.major
             bio = profile.bio
+            isInitialized = true // Đánh dấu đã load xong, khóa lại để không bị nhảy chữ
         }
     }
 
+    // Lắng nghe thông báo Toast
     LaunchedEffect(Unit) {
         viewModel.updateMessage.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -90,18 +95,21 @@ fun PersonalInfoScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                // [Thay đổi] Sử dụng stringResource cho Title
-                title = { 
+                title = {
                     Text(
-                        text = stringResource(R.string.p_info_title), 
-                        fontWeight = FontWeight.Bold, 
-                        fontSize = 18.sp, 
+                        text = stringResource(R.string.p_info_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
                         color = Color.White
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_desc_back), tint = Color.White)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.content_desc_back),
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PrimaryGreen)
@@ -109,7 +117,11 @@ fun PersonalInfoScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             when (val state = uiState) {
                 is ProfileUiState.Loading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -117,9 +129,8 @@ fun PersonalInfoScreen(
                     }
                 }
                 is ProfileUiState.Unauthenticated -> {
-                    // [Thay đổi] Sử dụng stringResource
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { 
-                        Text(stringResource(R.string.err_login_required)) 
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(stringResource(R.string.err_login_required))
                     }
                 }
                 is ProfileUiState.Authenticated -> {
@@ -140,12 +151,12 @@ fun PersonalInfoScreen(
                         onSaveClick = {
                             if (name.isNotBlank()) {
                                 focusManager.clearFocus()
+                                // Logic update
                                 if (name != state.profile.fullName) {
                                     viewModel.updateUserName(name)
                                 }
                                 viewModel.updateExtendedInfo(major, bio)
                             } else {
-                                // [Thay đổi] Sử dụng biến resource đã lấy
                                 Toast.makeText(context, errNameEmpty, Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -170,7 +181,6 @@ fun PersonalInfoContent(
     onAvatarClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
-    // [Thay đổi] Tạo danh sách Majors bằng stringResource để hỗ trợ đa ngôn ngữ
     val majors = listOf(
         stringResource(R.string.major_it),
         stringResource(R.string.major_transport_eco),
@@ -181,7 +191,7 @@ fun PersonalInfoContent(
         stringResource(R.string.major_environment),
         stringResource(R.string.major_other)
     )
-    
+
     var expandedMajor by remember { mutableStateOf(false) }
 
     Column(
@@ -197,12 +207,16 @@ fun PersonalInfoContent(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(2.dp)
         ) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
 
                 // 1. AVATAR
                 Box(contentAlignment = Alignment.Center) {
                     AsyncImage(
-                        model = userProfile.avatarUrl ?: "https://ui-avatars.com/api/?name=${userProfile.fullName}&background=random",
+                        model = userProfile.avatarUrl
+                            ?: "https://ui-avatars.com/api/?name=${userProfile.fullName}&background=random",
                         contentDescription = "Avatar",
                         modifier = Modifier
                             .size(100.dp)
@@ -212,14 +226,28 @@ fun PersonalInfoContent(
                         contentScale = ContentScale.Crop
                     )
                     if (isUploadingAvatar) {
-                        CircularProgressIndicator(modifier = Modifier.size(100.dp), color = PrimaryGreen, strokeWidth = 3.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(100.dp),
+                            color = PrimaryGreen,
+                            strokeWidth = 3.dp
+                        )
                     }
                     Box(
-                        modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp).size(32.dp).clip(CircleShape).background(PrimaryGreen).clickable { onAvatarClick() },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = 4.dp, y = 4.dp)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryGreen)
+                            .clickable { onAvatarClick() },
                         contentAlignment = Alignment.Center
                     ) {
-                        // [Thay đổi] Content description
-                        Icon(Icons.Default.CameraAlt, stringResource(R.string.change_avatar), tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            stringResource(R.string.change_avatar),
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
@@ -230,7 +258,6 @@ fun PersonalInfoContent(
                     value = userProfile.email,
                     onValueChange = {},
                     enabled = false,
-                    // [Thay đổi] stringResource
                     label = { Text(stringResource(R.string.acc_sec_email)) },
                     leadingIcon = { Icon(Icons.Default.Email, null) },
                     modifier = Modifier.fillMaxWidth(),
@@ -246,18 +273,24 @@ fun PersonalInfoContent(
                 OutlinedTextField(
                     value = nameState,
                     onValueChange = onNameChange,
-                    // [Thay đổi] stringResource
                     label = { Text(stringResource(R.string.label_fullname)) },
                     leadingIcon = { Icon(Icons.Default.Person, null) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen, cursorColor = PrimaryGreen)
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Next
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryGreen,
+                        focusedLabelColor = PrimaryGreen,
+                        cursorColor = PrimaryGreen
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 🟢 4. CHUYÊN NGÀNH (DROPDOWN)
+                // 4. CHUYÊN NGÀNH
                 ExposedDropdownMenuBox(
                     expanded = expandedMajor,
                     onExpandedChange = { expandedMajor = !expandedMajor }
@@ -266,12 +299,16 @@ fun PersonalInfoContent(
                         value = majorState,
                         onValueChange = {},
                         readOnly = true,
-                        // [Thay đổi] stringResource
                         label = { Text(stringResource(R.string.label_major)) },
                         leadingIcon = { Icon(Icons.Default.School, null) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMajor) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryGreen,
+                            focusedLabelColor = PrimaryGreen
+                        )
                     )
                     ExposedDropdownMenu(
                         expanded = expandedMajor,
@@ -291,18 +328,19 @@ fun PersonalInfoContent(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 🟢 5. BIO / GIỚI THIỆU
+                // 5. BIO
                 OutlinedTextField(
                     value = bioState,
                     onValueChange = onBioChange,
-                    // [Thay đổi] stringResource
                     label = { Text(stringResource(R.string.label_bio)) },
                     leadingIcon = { Icon(Icons.Default.Edit, null) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
-                    // [Thay đổi] stringResource
                     placeholder = { Text(stringResource(R.string.hint_bio)) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGreen, focusedLabelColor = PrimaryGreen)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryGreen,
+                        focusedLabelColor = PrimaryGreen
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -310,14 +348,19 @@ fun PersonalInfoContent(
                 // 6. NÚT LƯU
                 Button(
                     onClick = onSaveClick,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
                 ) {
                     Icon(Icons.Default.Save, null, Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    // [Thay đổi] stringResource
-                    Text(stringResource(R.string.p_info_save), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.p_info_save),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

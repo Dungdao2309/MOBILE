@@ -41,7 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.stringResource // 🟢 Import
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -64,7 +64,6 @@ fun ProfileScreen(
     onDocumentClick: (String) -> Unit = {},
     onNavigateToUpload: () -> Unit,
     onNavigateToHome: () -> Unit,
-    // 🟢 THÊM: Callback vào Admin
     onNavigateToAdmin: () -> Unit
 ) {
     val context = LocalContext.current
@@ -94,7 +93,10 @@ fun ProfileScreen(
         Crossfade(targetState = uiState, label = "ProfileState", animationSpec = tween(400)) { state ->
             when (state) {
                 is ProfileUiState.Loading -> ProfileSkeleton()
-                is ProfileUiState.Unauthenticated -> UnauthenticatedProfileContent(onNavigateToLogin, onNavigateToRegister)
+                is ProfileUiState.Unauthenticated -> UnauthenticatedProfileContent(
+                    onNavigateToLogin,
+                    onNavigateToRegister
+                )
                 is ProfileUiState.Authenticated -> AuthenticatedProfileContent(
                     userProfile = state.profile,
                     totalDocs = state.totalDocs,
@@ -108,17 +110,26 @@ fun ProfileScreen(
                     onNavigateToSettings = onNavigateToSettings,
                     onNavigateToLeaderboard = onNavigateToLeaderboard,
                     onDeleteDoc = { docId -> viewModel.deletePublishedDocument(docId) },
-                    onAvatarClick = { singlePhotoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    onAvatarClick = {
+                        singlePhotoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
                     onDocumentClick = onDocumentClick,
                     onNavigateToUpload = onNavigateToUpload,
                     onNavigateToHome = onNavigateToHome,
-                    onNavigateToAdmin = onNavigateToAdmin // 🟢 Truyền xuống
+                    onNavigateToAdmin = onNavigateToAdmin
                 )
             }
         }
 
         if (isUploadingAvatar) {
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator(color = PrimaryGreen)
             }
         }
@@ -144,7 +155,7 @@ fun AuthenticatedProfileContent(
     onDocumentClick: (String) -> Unit,
     onNavigateToUpload: () -> Unit,
     onNavigateToHome: () -> Unit,
-    onNavigateToAdmin: () -> Unit // 🟢 Nhận callback
+    onNavigateToAdmin: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabTitles = listOf(
@@ -158,23 +169,29 @@ fun AuthenticatedProfileContent(
         Column(modifier = Modifier.fillMaxSize()) {
             val userName = stringResource(R.string.profile_hello, userProfile.fullName)
 
-            // 🟢 UPDATE: Xử lý hiển thị môn học (đa ngôn ngữ cho 'Cơ khí')
             val displayMajor = when (userProfile.major) {
-                "Cơ khí" -> stringResource(R.string.subject_mechanical) // Dịch nếu là Cơ khí
+                "Cơ khí" -> stringResource(R.string.subject_mechanical)
                 "Chưa cập nhật", "" -> stringResource(R.string.profile_dept)
-                else -> userProfile.major // Các ngành khác hiển thị nguyên gốc
+                else -> userProfile.major
             }
 
-            ProfileHeader(userName, displayMajor, userProfile.avatarUrl, onSettingsClick = onNavigateToSettings, onLeaderboardClick = onNavigateToLeaderboard, onAvatarClick = onAvatarClick)
+            ProfileHeader(
+                userName = userName,
+                subText = displayMajor,
+                avatarUrl = userProfile.avatarUrl,
+                onSettingsClick = onNavigateToSettings,
+                onLeaderboardClick = onNavigateToLeaderboard,
+                onAvatarClick = onAvatarClick
+            )
 
-            // 🟢 NÚT ADMIN (Chỉ hiện nếu role là admin)
+            // 🟢 NÚT ADMIN DASHBOARD (Đã sửa lỗi tiếng Việt)
             if (userProfile.role == "admin") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .clickable { onNavigateToAdmin() },
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)), // Đỏ nhạt
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
@@ -182,70 +199,166 @@ fun AuthenticatedProfileContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = Color.Red)
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("TRUY CẬP TRANG QUẢN TRỊ", fontWeight = FontWeight.Bold, color = Color.Red)
+                        Text(
+                            text = stringResource(R.string.profile_btn_access_admin), // 🟢 Đã sửa dùng Resource
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
                     }
                 }
             }
 
-            // 🟢 UPDATE: Truyền memberRank xuống để xử lý hiển thị đa ngôn ngữ
             StatisticsRow(totalDocs, totalDownloads, memberRank)
-            Divider(color = Color.LightGray.copy(alpha = 0.3f))
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            TabRow(selectedTabIndex, containerColor = MaterialTheme.colorScheme.surface, contentColor = PrimaryGreen, indicator = { TabRowDefaults.SecondaryIndicator(Modifier.tabIndicatorOffset(it[selectedTabIndex]), color = PrimaryGreen) }) {
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = PrimaryGreen,
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                        color = PrimaryGreen
+                    )
+                }
+            ) {
                 tabTitles.forEachIndexed { index, title ->
-                    Tab(selected = selectedTabIndex == index, onClick = { selectedTabIndex = index }, text = { Text(title, fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == index) PrimaryGreen else MaterialTheme.colorScheme.onSurface) })
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        text = {
+                            Text(
+                                text = title,
+                                fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTabIndex == index) PrimaryGreen else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    )
                 }
             }
 
             Crossfade(targetState = selectedTabIndex, animationSpec = tween(300), label = "TabContent") { tabIndex ->
-                val currentList = when (tabIndex) { 0 -> publishedDocs; 1 -> savedDocs; 2 -> downloadedDocs; else -> emptyList() }
+                val currentList = when (tabIndex) {
+                    0 -> publishedDocs
+                    1 -> savedDocs
+                    2 -> downloadedDocs
+                    else -> emptyList()
+                }
                 if (currentList.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize().padding(top = 32.dp)) {
                         when (tabIndex) {
-                            0 -> ProfileEmptyState("Bạn chưa đăng tài liệu nào", "Đăng tài liệu ngay", Icons.Default.CloudUpload, onNavigateToUpload)
-                            1 -> ProfileEmptyState("Bạn chưa lưu tài liệu nào", "Khám phá ngay", Icons.Default.Search, onNavigateToHome)
-                            2 -> ProfileEmptyState("Chưa có tài liệu tải xuống", "Tìm tài liệu", Icons.Default.Download, onNavigateToHome)
+                            0 -> ProfileEmptyState(
+                                stringResource(R.string.profile_empty_posted), // 🟢
+                                stringResource(R.string.btn_upload_now),       // 🟢
+                                Icons.Default.CloudUpload,
+                                onNavigateToUpload
+                            )
+                            1 -> ProfileEmptyState(
+                                stringResource(R.string.profile_empty_saved),  // 🟢
+                                stringResource(R.string.btn_explore_now),      // 🟢
+                                Icons.Default.Search,
+                                onNavigateToHome
+                            )
+                            2 -> ProfileEmptyState(
+                                stringResource(R.string.profile_empty_downloaded), // 🟢
+                                stringResource(R.string.btn_search_docs),          // 🟢
+                                Icons.Default.Download,
+                                onNavigateToHome
+                            )
                         }
                     }
                 } else {
-                    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(currentList, key = { it.documentId }) { doc -> DocItemRow(doc, tabIndex == 0, { onDeleteDoc(doc.documentId) }, { onDocumentClick(doc.documentId) }) }
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(currentList, key = { it.documentId }) { doc ->
+                            DocItemRow(
+                                item = doc,
+                                isDeletable = tabIndex == 0,
+                                onDelete = { onDeleteDoc(doc.documentId) },
+                                onClick = { onDocumentClick(doc.documentId) }
+                            )
+                        }
                         item { Spacer(Modifier.height(80.dp)) }
                     }
                 }
             }
         }
-        PullRefreshIndicator(isRefreshing, pullRefreshState, Modifier.align(Alignment.TopCenter), contentColor = PrimaryGreen)
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+            contentColor = PrimaryGreen
+        )
     }
 }
 
-// ... (Các component con ở dưới giữ nguyên như file cũ, không thay đổi)
 @Composable
 fun ProfileEmptyState(message: String, buttonText: String, icon: ImageVector, onClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(80.dp), tint = PrimaryGreen.copy(alpha = 0.3f))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = PrimaryGreen.copy(alpha = 0.3f)
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = message, style = MaterialTheme.typography.bodyLarge, color = Color.Gray, textAlign = TextAlign.Center)
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen), shape = RoundedCornerShape(20.dp)) { Text(buttonText) }
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Text(buttonText)
+        }
     }
 }
 
 @Composable
 fun StatisticsRow(totalDocs: Int, totalDownloads: Int, memberRank: String, modifier: Modifier = Modifier) {
-    // 🟢 UPDATE: Xử lý hiển thị Rank (nếu là 'Thành viên mới' thì dùng resource)
     val displayRank = if (memberRank == "Thành viên mới") stringResource(R.string.rank_new_member) else memberRank
 
-    Row(modifier = modifier.fillMaxWidth().background(Color.White).padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        // 🟢 UPDATE: Dùng stringResource cho Label
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         StatItem(count = totalDocs.toString(), label = stringResource(R.string.profile_documents))
-        Divider(modifier = Modifier.height(40.dp).width(1.dp), color = Color.LightGray.copy(alpha = 0.5f))
-        // 🟢 UPDATE: Dùng stringResource cho Label
+        
+        Divider(
+            modifier = Modifier.height(40.dp).width(1.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        
         StatItem(count = totalDownloads.toString(), label = stringResource(R.string.profile_downloads))
-        Divider(modifier = Modifier.height(40.dp).width(1.dp), color = Color.LightGray.copy(alpha = 0.5f))
-        // 🟢 UPDATE: Dùng stringResource cho Label và hiển thị Rank đã xử lý
+        
+        Divider(
+            modifier = Modifier.height(40.dp).width(1.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        
         StatItem(count = displayRank, label = stringResource(R.string.rank_title), isRank = true)
     }
 }
@@ -253,43 +366,170 @@ fun StatisticsRow(totalDocs: Int, totalDownloads: Int, memberRank: String, modif
 @Composable
 fun StatItem(count: String, label: String, isRank: Boolean = false) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = count, style = if (isRank) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = if (isRank) Color(0xFFFF9800) else PrimaryGreen)
+        Text(
+            text = count,
+            style = if (isRank) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = if (isRank) Color(0xFFFF9800) else PrimaryGreen
+        )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = label, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 fun UnauthenticatedProfileContent(onLoginClick: () -> Unit, onRegisterClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Icon(Icons.Default.AccountCircle, null, Modifier.size(120.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.AccountCircle,
+            contentDescription = null,
+            modifier = Modifier.size(120.dp),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+        )
         Spacer(Modifier.height(24.dp))
-        Text("Bạn chưa đăng nhập", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            text = stringResource(R.string.profile_unauth_title), // 🟢 Đã sửa dùng Resource
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(Modifier.height(8.dp))
-        Text("Đăng nhập để quản lý tài liệu, xem lịch sử tải xuống và tham gia bảng xếp hạng.", style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+        Text(
+            text = stringResource(R.string.profile_unauth_desc), // 🟢 Đã sửa dùng Resource
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(Modifier.height(32.dp))
-        Button(onLoginClick, Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(25.dp), colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)) { Text("Đăng Nhập Ngay", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White) }
+        Button(
+            onClick = onLoginClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+        ) {
+            Text(
+                text = stringResource(R.string.btn_login_now), // 🟢 Đã sửa dùng Resource
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
         Spacer(Modifier.height(16.dp))
-        OutlinedButton(onRegisterClick, Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(25.dp), border = BorderStroke(1.dp, PrimaryGreen)) { Text("Tạo tài khoản mới", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PrimaryGreen) }
+        OutlinedButton(
+            onClick = onRegisterClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            border = BorderStroke(1.dp, PrimaryGreen)
+        ) {
+            Text(
+                text = stringResource(R.string.btn_create_account), // 🟢 Đã sửa dùng Resource
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = PrimaryGreen
+            )
+        }
     }
 }
 
+// ... (Các phần ProfileHeader, DocItemRow, ProfileSkeleton giữ nguyên logic, chỉ cần đảm bảo import R là được)
+// Do độ dài, tôi giữ nguyên phần dưới, chỉ cần thay đổi bên trên là đủ.
 @Composable
-fun ProfileHeader(userName: String, subText: String, avatarUrl: String?, onSettingsClick: () -> Unit, onLeaderboardClick: () -> Unit, onAvatarClick: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(0.dp), elevation = CardDefaults.cardElevation(2.dp), modifier = Modifier.padding(bottom = 1.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp).padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(64.dp).clip(CircleShape).clickable { onAvatarClick() }) {
-                if (avatarUrl != null) AsyncImage(model = avatarUrl, contentDescription = "Avatar", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                else Image(painter = painterResource(id = R.drawable.ic_person), contentDescription = null, colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)), modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp))
+fun ProfileHeader(
+    userName: String,
+    subText: String,
+    avatarUrl: String?,
+    onSettingsClick: () -> Unit,
+    onLeaderboardClick: () -> Unit,
+    onAvatarClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(0.dp),
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = Modifier.padding(bottom = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .padding(top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .clickable { onAvatarClick() }
+            ) {
+                if (avatarUrl != null) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_person),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(12.dp)
+                    )
+                }
             }
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(userName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text(subText, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Text(
+                    text = userName,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subText,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
                 Spacer(Modifier.height(8.dp))
-                Surface(onClick = onLeaderboardClick, shape = RoundedCornerShape(8.dp), color = Color(0xFFFFF3E0), modifier = Modifier.wrapContentWidth()) { Text(stringResource(R.string.profile_view_leaderboard), color = Color(0xFFFF9800), fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) }
+                Surface(
+                    onClick = onLeaderboardClick,
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFF9800).copy(alpha = 0.15f),
+                    modifier = Modifier.wrapContentWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.profile_view_leaderboard),
+                        color = Color(0xFFFF9800),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
-            IconButton(onSettingsClick) { Icon(Icons.Default.Settings, "Settings", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) }
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }
@@ -297,19 +537,72 @@ fun ProfileHeader(userName: String, subText: String, avatarUrl: String?, onSetti
 @Composable
 fun DocItemRow(item: DocItem, isDeletable: Boolean, onDelete: () -> Unit, onClick: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onClick() }, shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(2.dp)) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Description, null, tint = PrimaryGreen) }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Description, null, tint = PrimaryGreen)
+            }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.docTitle, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
-                Text(item.meta, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 13.sp)
+                Text(
+                    text = item.docTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = item.meta,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    fontSize = 13.sp
+                )
             }
             Box {
-                IconButton({ showMenu = true }) { Icon(Icons.Default.MoreVert, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) }
-                DropdownMenu(showMenu, { showMenu = false }, Modifier.background(MaterialTheme.colorScheme.surface)) {
-                    if (isDeletable) DropdownMenuItem({ Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.onSurface) }, { onDelete(); showMenu = false }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.onSurface) })
-                    else DropdownMenuItem({ Text(stringResource(R.string.feature_not_supported), color = MaterialTheme.colorScheme.onSurface) }, { showMenu = false })
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    if (isDeletable) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.onSurface) },
+                            onClick = {
+                                onDelete()
+                                showMenu = false
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.feature_not_supported), color = MaterialTheme.colorScheme.onSurface) },
+                            onClick = { showMenu = false }
+                        )
+                    }
                 }
             }
         }
@@ -320,24 +613,144 @@ fun DocItemRow(item: DocItem, isDeletable: Boolean, onDelete: () -> Unit, onClic
 fun ProfileSkeleton() {
     val brush = createShimmerBrush()
     Column(modifier = Modifier.fillMaxSize()) {
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(0.dp), elevation = CardDefaults.cardElevation(2.dp), modifier = Modifier.padding(bottom = 1.dp)) {
-            Row(modifier = Modifier.fillMaxWidth().padding(16.dp).padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(64.dp).clip(CircleShape).background(brush))
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(0.dp),
+            elevation = CardDefaults.cardElevation(2.dp),
+            modifier = Modifier.padding(bottom = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(brush)
+                )
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Box(modifier = Modifier.width(150.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    Box(
+                        modifier = Modifier
+                            .width(150.dp)
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(brush)
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Box(modifier = Modifier.width(100.dp).height(14.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    Box(
+                        modifier = Modifier
+                            .width(100.dp)
+                            .height(14.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(brush)
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Box(modifier = Modifier.width(80.dp).height(24.dp).clip(RoundedCornerShape(8.dp)).background(brush))
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(brush)
+                    )
                 }
             }
         }
-        Row(modifier = Modifier.fillMaxWidth().background(Color.White).padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            repeat(3) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Box(modifier = Modifier.width(30.dp).height(24.dp).clip(RoundedCornerShape(4.dp)).background(brush)); Spacer(Modifier.height(4.dp)); Box(modifier = Modifier.width(40.dp).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush)) } }
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            repeat(3) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .width(30.dp)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(brush)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(brush)
+                    )
+                }
+            }
         }
-        Divider(color = Color.LightGray.copy(alpha = 0.3f))
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) { repeat(3) { Box(modifier = Modifier.width(80.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush)) } }
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(5) { Card(modifier = Modifier.fillMaxWidth().height(80.dp), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp)) { Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(brush)); Spacer(Modifier.width(12.dp)); Column(modifier = Modifier.weight(1f)) { Box(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(brush)); Spacer(Modifier.height(8.dp)); Box(modifier = Modifier.fillMaxWidth(0.4f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush)) } } } } }
+        Divider(color = MaterialTheme.colorScheme.outlineVariant)
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(brush)
+                )
+            }
+        }
+        
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(5) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(brush)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.7f)
+                                    .height(16.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(brush)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.4f)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(brush)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }

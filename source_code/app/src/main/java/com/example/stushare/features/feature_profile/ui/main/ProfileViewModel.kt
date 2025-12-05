@@ -4,8 +4,8 @@ import android.app.Activity
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.stushare.core.data.db.UserDao // 🟢 Import UserDao
-import com.example.stushare.core.data.models.UserEntity // 🟢 Import UserEntity
+import com.example.stushare.core.data.db.UserDao
+import com.example.stushare.core.data.models.UserEntity
 import com.example.stushare.core.data.repository.DocumentRepository
 import com.example.stushare.features.feature_profile.ui.model.DocItem
 import com.example.stushare.features.feature_profile.ui.model.UserProfile
@@ -39,7 +39,9 @@ sealed interface ProfileUiState {
         val profile: UserProfile,
         val totalDocs: Int = 0,
         val totalDownloads: Int = 0,
-        val memberRank: String = "Thành viên mới"
+        val memberRank: String = "Thành viên mới",
+        // 🟢 [MỚI] Thêm cờ đánh dấu Admin để UI hiển thị nút Dashboard
+        val isAdmin: Boolean = false
     ) : ProfileUiState
 }
 
@@ -48,7 +50,7 @@ class ProfileViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val storage: FirebaseStorage,
     private val firestore: FirebaseFirestore,
-    private val userDao: UserDao // 🟢 1. Inject UserDao để lưu/lấy user nội bộ
+    private val userDao: UserDao
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -61,17 +63,13 @@ class ProfileViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
 
-    // 🟢 2. State chứa danh sách các tài khoản khác (đã từng đăng nhập)
     private val _otherAccounts = MutableStateFlow<List<UserEntity>>(emptyList())
     val otherAccounts = _otherAccounts.asStateFlow()
 
     private var verificationId: String = ""
 
-    // --- KHỐI INIT: Tự động chạy khi ViewModel được tạo ---
     init {
-        // Lưu phiên đăng nhập hiện tại để "nhớ" tài khoản
         saveCurrentSessionToLocalDb()
-        // Load các tài khoản cũ để hiển thị ở màn Switch Account
         loadOtherAccounts()
     }
 
@@ -88,9 +86,9 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = authStateFlow
         .flatMapLatest { user ->
             if (user != null) {
-                // Mỗi khi user thay đổi (đăng nhập lại), lưu ngay vào Local DB
                 saveCurrentSessionToLocalDb()
-                
+
+                // Lắng nghe thay đổi từ Firestore Realtime
                 val userDocFlow = callbackFlow {
                     val docRef = firestore.collection("users").document(user.uid)
                     val listener = docRef.addSnapshotListener { snapshot, _ ->
@@ -113,15 +111,26 @@ class ProfileViewModel @Inject constructor(
                         else -> "Thành viên mới"
                     }
 
+                    // --- [FIX QUAN TRỌNG] ---
+                    // Ưu tiên lấy dữ liệu từ Firestore Snapshot
+                    val firestoreName = snapshot?.getString("fullName")
+                    val authName = user.displayName
+                    val finalName = if (!firestoreName.isNullOrBlank()) firestoreName else (authName ?: user.email ?: "Sinh viên UTH")
+
                     val major = snapshot?.getString("major") ?: "Chưa cập nhật"
                     val bio = snapshot?.getString("bio") ?: ""
+                    
+                    // 🟢 [MỚI] Lấy role và xác định isAdmin
                     val role = snapshot?.getString("role") ?: "user"
+                    val isAdmin = role == "admin"
+
+                    val avatar = snapshot?.getString("avatarUrl") ?: user.photoUrl?.toString()
 
                     val profile = UserProfile(
                         id = user.uid,
-                        fullName = user.displayName ?: user.email ?: "Sinh viên UTH",
+                        fullName = finalName,
                         email = user.email ?: "",
-                        avatarUrl = user.photoUrl?.toString(),
+                        avatarUrl = avatar,
                         major = major,
                         bio = bio,
                         role = role
@@ -131,7 +140,8 @@ class ProfileViewModel @Inject constructor(
                         profile = profile,
                         totalDocs = totalDocs,
                         totalDownloads = totalDownloads,
-                        memberRank = rank
+                        memberRank = rank,
+                        isAdmin = isAdmin // 🟢 Truyền trạng thái admin vào State
                     )
                 }
             } else {
@@ -144,7 +154,6 @@ class ProfileViewModel @Inject constructor(
             ProfileUiState.Loading
         )
 
-    // ... (Giữ nguyên các Flow publishedDocuments, savedDocuments, downloadedDocuments) ...
     @OptIn(ExperimentalCoroutinesApi::class)
     val publishedDocuments: StateFlow<List<DocItem>> = authStateFlow
         .flatMapLatest { user ->
@@ -196,8 +205,7 @@ class ProfileViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
 
-    // --- 🟢 CÁC HÀM XỬ LÝ LOCAL DB MỚI ---
-
+    // --- LOCAL DB HELPER ---
     private fun saveCurrentSessionToLocalDb() {
         val user = auth.currentUser
         if (user != null) {
@@ -208,12 +216,8 @@ class ProfileViewModel @Inject constructor(
                         email = user.email ?: "",
                         fullName = user.displayName ?: "Người dùng",
                         avatarUrl = user.photoUrl?.toString()
-                        // Thêm các trường khác nếu UserEntity của bạn yêu cầu
                     )
-                    // Lưu user hiện tại vào Room (Insert or Replace)
                     userDao.insertUser(userEntity)
-                    
-                    // Sau khi lưu xong, cập nhật lại danh sách "Tài khoản khác"
                     loadOtherAccounts()
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -226,7 +230,6 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val currentUid = auth.currentUser?.uid ?: ""
-                // Lấy tất cả user từ DB, lọc bỏ user đang đăng nhập
                 userDao.getAllUsers().collect { allUsers ->
                     _otherAccounts.value = allUsers.filter { it.id != currentUid }
                 }
@@ -236,14 +239,14 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // --- CÁC HÀM CŨ GIỮ NGUYÊN (Có cập nhật gọi saveCurrentSessionToLocalDb khi update thành công) ---
+    // --- LOGIC CẬP NHẬT THÔNG TIN ---
 
     fun refreshData() {
         viewModelScope.launch {
             _isRefreshing.value = true
             try {
                 auth.currentUser?.reload()?.await()
-                saveCurrentSessionToLocalDb() // Cập nhật lại thông tin mới nhất vào DB
+                saveCurrentSessionToLocalDb()
                 delay(1000)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -254,12 +257,17 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun updateExtendedInfo(major: String, bio: String) {
-        val uid = auth.currentUser?.uid ?: return
-        val data = hashMapOf("major" to major, "bio" to bio)
+        val user = auth.currentUser ?: return
+        val data = hashMapOf(
+            "major" to major,
+            "bio" to bio,
+            "email" to (user.email ?: "")
+        )
+
         viewModelScope.launch {
             try {
-                firestore.collection("users").document(uid).set(data, SetOptions.merge()).await()
-                _updateMessage.emit("Đã cập nhật thông tin!")
+                firestore.collection("users").document(user.uid).set(data, SetOptions.merge()).await()
+                _updateMessage.emit("Đã lưu thông tin cá nhân! ✅")
             } catch (e: Exception) {
                 _updateMessage.emit("Lỗi: ${e.message}")
             }
@@ -274,15 +282,23 @@ class ProfileViewModel @Inject constructor(
                 val storageRef = storage.reference.child("avatars/${user.uid}.jpg")
                 storageRef.putFile(uri).await()
                 val downloadUrl = storageRef.downloadUrl.await()
+
                 val profileUpdates = UserProfileChangeRequest.Builder().setPhotoUri(downloadUrl).build()
                 user.updateProfile(profileUpdates).await()
+
+                // Cập nhật URL ảnh và đồng bộ email nếu chưa có
+                firestore.collection("users").document(user.uid)
+                    .set(mapOf(
+                        "avatarUrl" to downloadUrl.toString(),
+                        "email" to (user.email ?: "")
+                    ), SetOptions.merge())
+                    .await()
+
                 user.reload().await()
-                
-                saveCurrentSessionToLocalDb() // 🟢 Lưu avatar mới vào DB local
-                
+                saveCurrentSessionToLocalDb()
+
                 _updateMessage.emit("Đã cập nhật ảnh đại diện!")
             } catch (e: Exception) {
-                e.printStackTrace()
                 _updateMessage.emit("Lỗi tải ảnh: ${e.message}")
             } finally {
                 _isUploadingAvatar.value = false
@@ -296,20 +312,33 @@ class ProfileViewModel @Inject constructor(
             viewModelScope.launch { _updateMessage.emit("Tên không được để trống!") }
             return
         }
-        val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(newName).build()
-        user.updateProfile(profileUpdates).addOnCompleteListener { task ->
-            viewModelScope.launch {
-                if (task.isSuccessful) {
-                    _updateMessage.emit("Cập nhật tên thành công!")
-                    user.reload()
-                    saveCurrentSessionToLocalDb() // 🟢 Lưu tên mới vào DB local
-                } else {
-                    _updateMessage.emit("Lỗi: ${task.exception?.message}")
-                }
+
+        viewModelScope.launch {
+            try {
+                val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(newName).build()
+                user.updateProfile(profileUpdates).await()
+
+                val updateMap = mapOf(
+                    "fullName" to newName,
+                    "email" to (user.email ?: "")
+                )
+
+                firestore.collection("users").document(user.uid)
+                    .set(updateMap, SetOptions.merge())
+                    .await()
+
+                _updateMessage.emit("Cập nhật tên thành công!")
+
+                user.reload().await()
+                saveCurrentSessionToLocalDb()
+
+            } catch (e: Exception) {
+                _updateMessage.emit("Lỗi cập nhật: ${e.message}")
             }
         }
     }
 
+    // --- CÁC HÀM KHÁC (Password, Email, OTP...) ---
     fun changePassword(currentPass: String, newPass: String) {
         val user = auth.currentUser ?: return
         if (user.email == null) return
@@ -337,8 +366,10 @@ class ProfileViewModel @Inject constructor(
                 user.updateEmail(newEmail).addOnCompleteListener { updateTask ->
                     viewModelScope.launch {
                         if (updateTask.isSuccessful) {
+                            firestore.collection("users").document(user.uid)
+                                .set(mapOf("email" to newEmail), SetOptions.merge())
                             _updateMessage.emit("Đổi email thành công!")
-                            saveCurrentSessionToLocalDb() // 🟢 Lưu email mới
+                            saveCurrentSessionToLocalDb()
                         }
                         else _updateMessage.emit("Lỗi: ${updateTask.exception?.message}")
                     }
@@ -362,16 +393,9 @@ class ProfileViewModel @Inject constructor(
 
     fun signOut() {
         auth.signOut()
-        // Khi sign out, authStateFlow sẽ emit null -> uiState chuyển về Unauthenticated
-        // loadOtherAccounts sẽ tự động cập nhật lại danh sách (vì currentUid thay đổi)
     }
 
-    fun sendOtp(
-        phoneNumber: String,
-        activity: Activity,
-        onCodeSent: () -> Unit,
-        onError: (String) -> Unit
-    ) {
+    fun sendOtp(phoneNumber: String, activity: Activity, onCodeSent: () -> Unit, onError: (String) -> Unit) {
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)
@@ -380,15 +404,10 @@ class ProfileViewModel @Inject constructor(
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                     updatePhoneNumber(credential)
                 }
-
                 override fun onVerificationFailed(e: FirebaseException) {
                     onError(e.message ?: "Gửi OTP thất bại")
                 }
-
-                override fun onCodeSent(
-                    vId: String,
-                    token: PhoneAuthProvider.ForceResendingToken
-                ) {
+                override fun onCodeSent(vId: String, token: PhoneAuthProvider.ForceResendingToken) {
                     verificationId = vId
                     onCodeSent()
                 }
@@ -409,11 +428,9 @@ class ProfileViewModel @Inject constructor(
             try {
                 user.updatePhoneNumber(credential).await()
                 user.reload().await()
-
                 firestore.collection("users").document(user.uid)
                     .update("phone", user.phoneNumber)
                     .await()
-
                 _updateMessage.emit("Cập nhật số điện thoại thành công! ✅")
             } catch (e: Exception) {
                 _updateMessage.emit("Lỗi: ${e.message}")

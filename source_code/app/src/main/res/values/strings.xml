@@ -293,4 +293,61 @@
     <string name="msg_logout_success">Đã đăng xuất thành công</string>
     <string name="msg_login_required">Cần đăng nhập!</string>
     <string name="err_generic">Lỗi: %1$s</string>
+
+    <string name="admin_dashboard_title">Admin Dashboard</string>
+    <string name="admin_system_overview">Tổng quan hệ thống</string>
+    <string name="admin_stat_users">Người dùng</string>
+    <string name="admin_stat_docs">Tài liệu</string>
+    <string name="admin_stat_requests">Yêu cầu</string>
+    <string name="admin_management_functions">Chức năng quản lý</string>
+    <string name="admin_btn_reports">Duyệt tài liệu / Báo cáo</string>
+    <string name="admin_btn_users">Quản lý người dùng</string>
+    <string name="admin_btn_notifications">Gửi thông báo hệ thống</string>
+
+    <string name="report_screen_title">Quản lý vi phạm</string>
+    <string name="report_empty_message">Sạch bóng! Không có báo cáo nào.</string>
+    <string name="report_label_document">Tài liệu:</string>
+    <string name="report_label_reporter">Người báo cáo:</string>
+    <string name="report_label_date">Ngày:</string>
+    <string name="report_label_id">ID:</string>
+    <string name="btn_view">Xem thử</string>
+    <string name="btn_dismiss">Bỏ qua</string>
+    <string name="btn_delete">Xóa</string>
+
+    <string name="profile_btn_access_admin">TRUY CẬP TRANG QUẢN TRỊ</string>
+
+    <string name="profile_unauth_title">Bạn chưa đăng nhập</string>
+    <string name="profile_unauth_desc">Đăng nhập để quản lý tài liệu, xem lịch sử tải xuống và tham gia bảng xếp hạng.</string>
+    <string name="btn_login_now">Đăng Nhập Ngay</string>
+    <string name="btn_create_account">Tạo tài khoản mới</string>
+
+    <string name="profile_empty_posted">Bạn chưa đăng tài liệu nào</string>
+    <string name="btn_upload_now">Đăng tài liệu ngay</string>
+    <string name="profile_empty_saved">Bạn chưa lưu tài liệu nào</string>
+    <string name="btn_explore_now">Khám phá ngay</string>
+    <string name="profile_empty_downloaded">Chưa có tài liệu tải xuống</string>
+    <string name="btn_search_docs">Tìm tài liệu</string>
+
+    <string name="admin_user_list_title">Danh sách người dùng</string>
+    <string name="admin_user_status_banned">ĐÃ KHÓA</string>
+    <string name="admin_user_role_admin">ADMIN</string>
+    <string name="admin_user_role_user">USER</string>
+    
+    <string name="msg_ban_user">Đã khóa tài khoản %1$s</string>
+    <string name="msg_unban_user">Đã mở khóa tài khoản %1$s</string>
+    <string name="err_load_users">Lỗi tải danh sách: %1$s</string>
+
+    <string name="admin_send_notif_screen_title">Gửi thông báo</string>
+    <string name="label_notif_title">Tiêu đề thông báo</string>
+    <string name="label_notif_content">Nội dung tin nhắn</string>
+    <string name="opt_send_all">Gửi cho tất cả người dùng</string>
+    <string name="opt_send_specific">Gửi cho người dùng cụ thể</string>
+    <string name="hint_target_email">Nhập email người nhận...</string>
+    <string name="btn_send_now">Gửi ngay</string>
+    <string name="msg_sending_notif">Đang gửi thông báo...</string>
+    <string name="msg_sent_all_success">Đã gửi cho tất cả người dùng!</string>
+    <string name="msg_sent_user_success">Đã gửi cho %1$s</string>
+    <string name="err_user_not_found">Không tìm thấy người dùng có email này</string>
+    <string name="err_input_missing">Vui lòng nhập đầy đủ tiêu đề và nội dung</string>
+    <string name="default_web_client_id">87446888050-rkhimu976pje8coo91qd44h12ih9hufh.apps.googleusercontent.com</string>
 </resources>
