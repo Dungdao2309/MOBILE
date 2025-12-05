@@ -1,11 +1,24 @@
-package com.example.stushare.features.feature_search.ui.components
+package com.example.stushare.feature_search.ui.search
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,75 +39,99 @@ fun SearchResultCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Thiết kế này giống hệt DocumentCard, chỉ khác cách sắp xếp
-    // Chúng ta có thể tái sử dụng 100% DocumentCard từ feature_home
-    // Nhưng nếu thiết kế khác (như ảnh trái, text phải) thì bạn dùng code dưới:
-
     Card(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // Đặt chiều cao cố định hoặc wrapContent để các thẻ đều nhau hơn
+            .height(260.dp),
         shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = Color.White
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Ảnh bìa
+            // 1. Ảnh bìa (Nằm trên cùng, chiếm khoảng 55-60% chiều cao)
             AsyncImage(
                 model = document.imageUrl,
                 contentDescription = document.title,
                 modifier = Modifier
-                    .size(100.dp, 120.dp) // Kích thước ảnh
-                    .clip(RoundedCornerShape(8.dp)),
+                    .fillMaxWidth()
+                    .weight(1f) // Chiếm phần không gian còn lại (đẩy nội dung xuống)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Cụm thông tin
+            // 2. Phần nội dung chữ (Nằm dưới)
             Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
             ) {
+                // Tiêu đề
                 Text(
                     text = document.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp // Giảm size chữ một chút cho vừa ô lưới
+                    ),
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    minLines = 2 // Giữ độ cao tiêu đề ổn định
                 )
+
                 Spacer(modifier = Modifier.height(4.dp))
+
+                // Loại tài liệu & Tác giả
                 Text(
-                    text = "Tác giả: Hoàng Văn Tuấn", // (Dữ liệu giả)
+                    text = document.type, // Hoặc document.author nếu có
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Loại: ${document.type}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Thông số
+                // Thông số (Rating & Download)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Rating
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Download, "Tải về", Modifier.size(16.dp), Color.Gray)
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Rating",
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFFFFC107)
+                        )
                         Spacer(Modifier.width(4.dp))
-                        Text(document.downloads.toString(), style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = document.rating.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
                     }
+
+                    // Download
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Star, "Rating", Modifier.size(16.dp), Color(0xFFFFC107))
+                        Icon(
+                            imageVector = Icons.Filled.Download,
+                            contentDescription = "Downloads",
+                            modifier = Modifier.size(14.dp),
+                            tint = Color.Gray
+                        )
                         Spacer(Modifier.width(4.dp))
-                        Text(document.rating.toString(), style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = document.downloads.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
                     }
                 }
             }
