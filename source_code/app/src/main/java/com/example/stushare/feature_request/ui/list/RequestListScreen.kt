@@ -1,6 +1,7 @@
 package com.example.stushare.feature_request.ui.list
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.CheckCircle // Icon tích xanh
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -35,7 +37,6 @@ import com.example.stushare.ui.theme.createShimmerBrush
 fun RequestListScreen(
     onBackClick: () -> Unit,
     onCreateRequestClick: () -> Unit,
-    // 🟢 MỚI: Callback để chuyển sang màn hình chi tiết
     onNavigateToDetail: (String) -> Unit,
     viewModel: RequestListViewModel = hiltViewModel()
 ) {
@@ -105,7 +106,6 @@ fun RequestListScreen(
                         items(uiState.requests) { request ->
                             RequestCard(
                                 request = request,
-                                // 🟢 CẬP NHẬT: Gọi callback chuyển trang kèm ID
                                 onReplyClick = { onNavigateToDetail(request.id) }
                             )
                         }
@@ -121,8 +121,11 @@ fun RequestCard(
     request: DocumentRequest,
     onReplyClick: () -> Unit
 ) {
+    // Thêm clickable vào cả Card để bấm đâu cũng vào chi tiết
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onReplyClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -130,21 +133,39 @@ fun RequestCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            if (request.subject.isNotBlank()) {
-                Surface(
-                    color = LightGreen,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.padding(bottom = 12.dp)
-                ) {
-                    Text(
-                        text = request.subject,
-                        color = PrimaryGreen,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            // Row trên cùng: Môn học + Trạng thái
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (request.subject.isNotBlank()) {
+                    Surface(
+                        color = LightGreen,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = request.subject,
+                            color = PrimaryGreen,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+
+                // 🟢 MỚI: Hiển thị trạng thái "Đã xong" ở góc trên (Tùy chọn)
+                if (request.isSolved) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Đã xong",
+                        tint = Color(0xFF4CAF50), // Xanh lá đậm
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = request.title,
@@ -170,6 +191,7 @@ fun RequestCard(
             Divider(color = Color.LightGray.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Row dưới cùng: Tác giả + Nút hành động
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -190,31 +212,60 @@ fun RequestCard(
                     )
                 }
 
-                Button(
-                    onClick = onReplyClick,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    modifier = Modifier.height(32.dp),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF0F0F0),
-                        contentColor = Color.Black
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(0.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChatBubbleOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Trả lời", style = MaterialTheme.typography.labelSmall)
+                // 🟢 MỚI: Logic hiển thị nút
+                if (request.isSolved) {
+                    // Trạng thái: ĐÃ XONG (Badge xanh)
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFE8F5E9) // Xanh nhạt
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Đã xong",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF2E7D32),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else {
+                    // Trạng thái: CHƯA XONG (Nút Trả lời cũ)
+                    Button(
+                        onClick = onReplyClick,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        modifier = Modifier.height(32.dp),
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFF0F0F0),
+                            contentColor = Color.Black
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ChatBubbleOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Trả lời", style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
         }
     }
 }
 
-// ... (Giữ nguyên phần EmptyRequestState và Skeleton)
+// ... (Các phần EmptyRequestState và RequestListSkeleton GIỮ NGUYÊN như cũ)
 @Composable
 fun EmptyRequestState(onCreateClick: () -> Unit) {
     Column(

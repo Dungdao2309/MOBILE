@@ -11,12 +11,15 @@ interface RequestRepository {
     // Tạo yêu cầu mới
     suspend fun createRequest(title: String, subject: String, description: String)
 
-    // 🟢 MỚI: Lấy chi tiết 1 yêu cầu
+    // Lấy chi tiết 1 yêu cầu
     fun getRequestById(requestId: String): Flow<DocumentRequest?>
 
-    // 🟢 MỚI: Lấy danh sách bình luận (Chat) của yêu cầu
+    // Lấy danh sách bình luận (Chat) của yêu cầu
     fun getCommentsForRequest(requestId: String): Flow<List<CommentEntity>>
 
-    // 🟢 MỚI: Gửi bình luận/trả lời
+    // Gửi bình luận/trả lời
     suspend fun addCommentToRequest(requestId: String, content: String)
+
+    // 🟢 MỚI: Cập nhật trạng thái Hoàn thành
+    suspend fun updateRequestStatus(requestId: String, isSolved: Boolean): Result<Unit>
 }

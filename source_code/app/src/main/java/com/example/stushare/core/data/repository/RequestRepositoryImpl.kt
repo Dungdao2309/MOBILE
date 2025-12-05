@@ -1,6 +1,6 @@
 package com.example.stushare.core.data.repository
 
-import com.example.stushare.core.data.models.CommentEntity // 🟢 Import Model Comment
+import com.example.stushare.core.data.models.CommentEntity
 import com.example.stushare.core.data.models.DocumentRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -21,7 +21,7 @@ class RequestRepositoryImpl @Inject constructor(
     private val requestsCollection = firestore.collection("requests")
 
     /**
-     * Lắng nghe TẤT CẢ yêu cầu (Dùng cho RequestListScreen & HomeScreen)
+     * Lắng nghe TẤT CẢ yêu cầu
      */
     override fun getAllRequests(): Flow<List<DocumentRequest>> {
         return callbackFlow {
@@ -42,7 +42,7 @@ class RequestRepositoryImpl @Inject constructor(
     }
 
     /**
-     * 🟢 MỚI: Lắng nghe CHI TIẾT 1 yêu cầu (Dùng cho RequestDetailScreen)
+     * Lắng nghe CHI TIẾT 1 yêu cầu
      */
     override fun getRequestById(requestId: String): Flow<DocumentRequest?> {
         return callbackFlow {
@@ -64,15 +64,14 @@ class RequestRepositoryImpl @Inject constructor(
     }
 
     /**
-     * 🟢 MỚI: Lắng nghe DANH SÁCH BÌNH LUẬN (Chat)
-     * Cấu trúc: requests/{requestId}/comments
+     * Lắng nghe DANH SÁCH BÌNH LUẬN (Chat)
      */
     override fun getCommentsForRequest(requestId: String): Flow<List<CommentEntity>> {
         return callbackFlow {
             val commentsRef = requestsCollection.document(requestId).collection("comments")
 
             val listenerRegistration = commentsRef
-                .orderBy("timestamp", Query.Direction.ASCENDING) // Tin nhắn cũ ở trên, mới ở dưới
+                .orderBy("timestamp", Query.Direction.ASCENDING) // Tin nhắn cũ ở trên
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         close(error)
@@ -88,7 +87,7 @@ class RequestRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Tạo yêu cầu mới (Đã cập nhật thêm authorId, avatar)
+     * Tạo yêu cầu mới
      */
     override suspend fun createRequest(title: String, subject: String, description: String) {
         try {
@@ -102,9 +101,9 @@ class RequestRepositoryImpl @Inject constructor(
                 subject = subject,
                 description = description,
                 authorName = authorName,
-                // 🟢 Lưu thêm thông tin định danh
                 authorId = authorId,
-                authorAvatar = authorAvatar
+                authorAvatar = authorAvatar,
+                isSolved = false // Mặc định là chưa giải quyết
             )
 
             requestsCollection.add(newRequest).await()
@@ -116,7 +115,7 @@ class RequestRepositoryImpl @Inject constructor(
     }
 
     /**
-     * 🟢 MỚI: Gửi bình luận (Chat)
+     * Gửi bình luận (Chat)
      */
     override suspend fun addCommentToRequest(requestId: String, content: String) {
         try {
@@ -128,10 +127,8 @@ class RequestRepositoryImpl @Inject constructor(
                 userName = currentUser.displayName ?: "Ẩn danh",
                 userAvatar = currentUser.photoUrl?.toString(),
                 content = content
-                // timestamp sẽ được Firestore tự điền nhờ @ServerTimestamp trong Model
             )
 
-            // Lưu vào sub-collection "comments"
             requestsCollection.document(requestId)
                 .collection("comments")
                 .add(comment)
@@ -140,6 +137,21 @@ class RequestRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             throw IOException("Không thể gửi bình luận", e)
+        }
+    }
+
+    /**
+     * 🟢 MỚI: Cập nhật trạng thái Hoàn thành
+     */
+    override suspend fun updateRequestStatus(requestId: String, isSolved: Boolean): Result<Unit> {
+        return try {
+            requestsCollection.document(requestId)
+                .update("isSolved", isSolved)
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
         }
     }
 }

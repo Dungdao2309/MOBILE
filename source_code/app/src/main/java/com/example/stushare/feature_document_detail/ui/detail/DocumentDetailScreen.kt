@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Flag // 🟢 Icon Báo cáo
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
@@ -63,7 +63,6 @@ fun DocumentDetailScreen(
     val isSendingComment by viewModel.isSendingComment.collectAsStateWithLifecycle()
 
     var showRatingDialog by remember { mutableStateOf(false) }
-    // 🟢 MỚI: Trạng thái hiển thị hộp thoại báo cáo
     var showReportDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -91,7 +90,7 @@ fun DocumentDetailScreen(
                     }
                 },
                 actions = {
-                    // 🟢 Nút Báo cáo (Report)
+                    // Nút Báo cáo (Report)
                     IconButton(onClick = {
                         if (isLoggedIn) showReportDialog = true
                         else onLoginRequired()
@@ -99,7 +98,7 @@ fun DocumentDetailScreen(
                         Icon(
                             imageVector = Icons.Filled.Flag,
                             contentDescription = "Báo cáo",
-                            tint = Color.Red // Màu đỏ cảnh báo
+                            tint = Color.Red
                         )
                     }
 
@@ -185,7 +184,7 @@ fun DocumentDetailScreen(
             )
         }
 
-        // 🟢 MỚI: Hộp thoại báo cáo
+        // Hộp thoại báo cáo
         if (showReportDialog && uiState is DetailUiState.Success) {
             val doc = (uiState as DetailUiState.Success).document
             ReportDialog(
@@ -199,7 +198,6 @@ fun DocumentDetailScreen(
     }
 }
 
-// 🟢 MỚI: Composable ReportDialog tách riêng
 @Composable
 fun ReportDialog(
     onDismiss: () -> Unit,
@@ -212,7 +210,7 @@ fun ReportDialog(
         "Tài liệu bị lỗi không xem được",
         "Khác"
     )
-    // Mặc định chọn lý do đầu tiên
+
     var selectedReason by remember { mutableStateOf(reasons[0]) }
 
     AlertDialog(
@@ -309,7 +307,11 @@ fun DocumentDetailContentWithComments(
             Divider(color = Color.LightGray.copy(alpha = 0.2f))
             Spacer(Modifier.height(24.dp))
             DetailSection("Mô tả tài liệu", document.description.ifBlank { "Chưa có mô tả." })
-            DetailSection("Thông tin thêm", "• Mã môn: ${document.courseCode}\n• Loại: ${document.type}")
+
+            // --- ĐÃ CHỈNH SỬA: Xóa phần hiển thị Mã môn ---
+            DetailSection("Thông tin thêm", "• Loại: ${document.type}")
+            // ----------------------------------------------
+
             Spacer(Modifier.height(24.dp))
             Divider(color = Color.LightGray.copy(alpha = 0.2f))
             Spacer(Modifier.height(16.dp))

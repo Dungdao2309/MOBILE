@@ -29,7 +29,6 @@ class RequestDetailViewModel @Inject constructor(
     firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    // Lấy ID từ Navigation Argument một cách an toàn
     private val args = savedStateHandle.toRoute<NavRoute.RequestDetail>()
     private val requestId = args.requestId
     private val currentUserId = firebaseAuth.currentUser?.uid ?: ""
@@ -39,7 +38,6 @@ class RequestDetailViewModel @Inject constructor(
 
     private val _isSending = MutableStateFlow(false)
 
-    // Kết hợp luồng dữ liệu Request và Comment
     val uiState: StateFlow<RequestDetailUiState> = combine(
         requestRepository.getRequestById(requestId),
         requestRepository.getCommentsForRequest(requestId),
@@ -48,7 +46,7 @@ class RequestDetailViewModel @Inject constructor(
         RequestDetailUiState(
             request = request,
             comments = comments,
-            isLoadingRequest = request == null, // Nếu chưa load được request thì hiện loading
+            isLoadingRequest = request == null,
             isSending = isSending,
             currentUserId = currentUserId
         )
@@ -70,12 +68,27 @@ class RequestDetailViewModel @Inject constructor(
             _isSending.value = true
             try {
                 requestRepository.addCommentToRequest(requestId, content)
-                _commentText.value = "" // Xóa ô nhập sau khi gửi
+                _commentText.value = ""
             } catch (e: Exception) {
-                // Xử lý lỗi nếu cần (VD: hiện Toast)
                 e.printStackTrace()
             } finally {
                 _isSending.value = false
+            }
+        }
+    }
+
+    // 🟢 CẬP NHẬT: Hàm markAsSolved có thêm callbacks để báo kết quả cho UI
+    fun markAsSolved(onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            // Gọi repository update
+            val result = requestRepository.updateRequestStatus(requestId, true)
+
+            if (result.isSuccess) {
+                onSuccess()
+                // UI tự động cập nhật nhờ Flow từ Repository
+            } else {
+                val errorMsg = result.exceptionOrNull()?.message ?: "Lỗi không xác định"
+                onError(errorMsg)
             }
         }
     }
