@@ -6,7 +6,10 @@ sealed interface NavRoute {
     // --- AUTHENTICATION ---
     @Serializable data object Intro : NavRoute
     @Serializable data object Onboarding : NavRoute
+
+    // 🟢 SỬA: Đổi sang data class để nhận tham số email (dùng khi SwitchAccount)
     @Serializable data class Login(val email: String? = null) : NavRoute
+
     @Serializable data object Register : NavRoute
     @Serializable data object ForgotPassword : NavRoute
     @Serializable data object LoginSMS : NavRoute
@@ -30,17 +33,11 @@ sealed interface NavRoute {
     // --- ADMIN FEATURES ---
     @Serializable data object AdminDashboard : NavRoute
     @Serializable data object AdminReports : NavRoute
+    @Serializable data object AdminUserList : NavRoute // 🟢 MỚI: Quản lý người dùng
 
-    // 🟢 ĐÃ THÊM: Route cho màn hình quản lý user
-    @Serializable data object AdminUserList : NavRoute
-
-    // --- SETTINGS ---
+    // --- SETTINGS & PROFILE EDIT ---
     @Serializable data object Settings : NavRoute
     @Serializable data object AccountSecurity : NavRoute
-
-    @Serializable data object EditPhone : NavRoute
-    @Serializable data object EditEmail : NavRoute
-
     @Serializable data object ChangePassword : NavRoute
     @Serializable data object NotificationSettings : NavRoute
     @Serializable data object AppearanceSettings : NavRoute
@@ -50,6 +47,9 @@ sealed interface NavRoute {
     @Serializable data object SwitchAccount : NavRoute
     @Serializable data object PersonalInfo : NavRoute
 
+    // 🟢 CÁC ROUTE CÒN THIẾU (Dựa trên AppNavigation cũ của bạn)
+    @Serializable data object EditEmail : NavRoute
+    @Serializable data object EditPhone : NavRoute
     @Serializable data object TermsOfUse : NavRoute
     @Serializable data object PrivacyPolicy : NavRoute
 }

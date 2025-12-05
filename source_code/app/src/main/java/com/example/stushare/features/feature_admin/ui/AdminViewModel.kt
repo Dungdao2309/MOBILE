@@ -2,45 +2,35 @@ package com.example.stushare.features.feature_admin.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.stushare.core.data.models.Report
 import com.example.stushare.core.data.models.UserEntity
+import com.example.stushare.core.data.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// --- 1. CÁC DATA MODEL CẦN THIẾT (Nếu chưa có file riêng thì dùng tạm ở đây) ---
-
-// Model cho Dashboard
+// Model UI State (Cần String để hiển thị Text)
 data class AdminUiState(
     val userCount: String = "0",
     val documentCount: String = "0",
     val requestCount: String = "0"
 )
 
-// Model cho Report (Thêm cái này để AdminReportScreen hết lỗi)
-data class Report(
-    val id: String,
-    val documentId: String,
-    val documentTitle: String,
-    val reason: String,
-    val reporterEmail: String,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
 @HiltViewModel
-class AdminViewModel @Inject constructor() : ViewModel() {
+class AdminViewModel @Inject constructor(
+    private val repository: AdminRepository
+) : ViewModel() {
 
-    // ==========================================================
-    // PHẦN 1: DASHBOARD
-    // ==========================================================
+    // --- DASHBOARD STATE ---
     private val _uiState = MutableStateFlow(AdminUiState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
-    // ==========================================================
-    // PHẦN 2: USER MANAGEMENT (QUẢN LÝ USER)
-    // ==========================================================
+    private val _isLoadingDashboard = MutableStateFlow(false)
+    val isLoadingDashboard = _isLoadingDashboard.asStateFlow()
+
+    // --- USER MANAGEMENT STATE ---
     private val _rawUsersList = MutableStateFlow<List<UserEntity>>(emptyList())
     private val _searchQuery = MutableStateFlow("")
     private val _isLoadingUsers = MutableStateFlow(false)
@@ -56,16 +46,11 @@ class AdminViewModel @Inject constructor() : ViewModel() {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // ==========================================================
-    // PHẦN 3: REPORT MANAGEMENT (QUẢN LÝ BÁO CÁO VI PHẠM) - MỚI THÊM
-    // ==========================================================
-
-    // List báo cáo
+    // --- REPORT STATE ---
     private val _reports = MutableStateFlow<List<Report>>(emptyList())
     val reports: StateFlow<List<Report>> = _reports.asStateFlow()
 
-    // Trạng thái xử lý (loading) chung cho màn Report
-    private val _isProcessing = MutableStateFlow(false)
+    private val _isProcessing = MutableStateFlow(false) // Dùng chung cho loading khi xóa/gửi
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
     // Kênh thông báo (Toast)
@@ -74,75 +59,127 @@ class AdminViewModel @Inject constructor() : ViewModel() {
 
     init {
         loadDashboardStats()
-        loadReports() // Tải dữ liệu báo cáo giả lập
+        loadUsers()
+        loadReports()
     }
 
-    // --- LOGIC DASHBOARD ---
+    // ==========================================
+    // 1. LOGIC DASHBOARD
+    // ==========================================
     private fun loadDashboardStats() {
         viewModelScope.launch {
-            _uiState.update { it.copy(userCount = "120", documentCount = "45", requestCount = "12") }
+            _isLoadingDashboard.value = true
+            try {
+                val stats = repository.getSystemStats()
+                _uiState.update {
+                    AdminUiState(
+                        userCount = stats.userCount.toString(),
+                        documentCount = stats.documentCount.toString(),
+                        requestCount = stats.requestCount.toString()
+                    )
+                }
+            } catch (e: Exception) {
+                _toastMessage.send("Lỗi tải thống kê: ${e.message}")
+            } finally {
+                _isLoadingDashboard.value = false
+            }
         }
     }
 
-    // --- LOGIC USER ---
+    // ==========================================
+    // 2. LOGIC QUẢN LÝ USER
+    // ==========================================
     fun loadUsers() {
         viewModelScope.launch {
             _isLoadingUsers.value = true
-            delay(1000)
-            _rawUsersList.value = listOf(
-                UserEntity("1", "Nguyễn Văn A", "a@gmail.com", isLocked = false),
-                UserEntity("2", "Trần Thị B", "b@gmail.com", isLocked = true),
-                UserEntity("3", "Lê C", "c@gmail.com", isLocked = false)
-            )
+            repository.getAllUsers()
+                .onSuccess { users -> _rawUsersList.value = users }
+                .onFailure { e -> _toastMessage.send("Lỗi tải User: ${e.message}") }
             _isLoadingUsers.value = false
         }
     }
 
-    fun onSearchQueryChanged(query: String) { _searchQuery.value = query }
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+    }
 
     fun toggleUserLock(user: UserEntity) {
         viewModelScope.launch {
-            val updatedList = _rawUsersList.value.map {
+            // Optimistic update (Cập nhật UI trước cho mượt)
+            val oldList = _rawUsersList.value
+            val newList = oldList.map {
                 if (it.id == user.id) it.copy(isLocked = !it.isLocked) else it
             }
-            _rawUsersList.value = updatedList
+            _rawUsersList.value = newList
+
+            repository.setUserLockStatus(user.id, !user.isLocked)
+                .onSuccess {
+                    val status = if (!user.isLocked) "Đã khóa" else "Đã mở khóa"
+                    _toastMessage.send("$status tài khoản ${user.fullName}")
+                }
+                .onFailure {
+                    _rawUsersList.value = oldList // Hoàn tác nếu lỗi
+                    _toastMessage.send("Lỗi cập nhật trạng thái: ${it.message}")
+                }
         }
     }
 
-    // --- LOGIC REPORTS (FIX LỖI CHO ADMIN REPORT SCREEN) ---
-
+    // ==========================================
+    // 3. LOGIC QUẢN LÝ BÁO CÁO
+    // ==========================================
     private fun loadReports() {
-        // Giả lập dữ liệu báo cáo
-        _reports.value = listOf(
-            Report("r1", "doc1", "Đề thi Toán HK1", "Nội dung sai lệch/Spam", "user1@gmail.com"),
-            Report("r2", "doc2", "Giải tích 2", "Vi phạm bản quyền", "user2@gmail.com"),
-            Report("r3", "doc3", "Tài liệu lạ", "Chứa mã độc", "user3@gmail.com")
-        )
+        viewModelScope.launch {
+            repository.getPendingReports()
+                .onSuccess { list -> _reports.value = list }
+                .onFailure { _toastMessage.send("Lỗi tải báo cáo: ${it.message}") }
+        }
     }
 
-    // Xóa tài liệu bị báo cáo
     fun deleteDocument(docId: String, reportId: String) {
         viewModelScope.launch {
             _isProcessing.value = true
-            delay(1500) // Giả lập gọi API xóa
-
-            // Xóa xong thì xóa report khỏi list
-            _reports.update { currentList ->
-                currentList.filter { it.id != reportId }
-            }
-
-            _toastMessage.send("Đã xóa tài liệu $docId thành công!")
+            repository.deleteDocumentAndResolveReport(docId, reportId)
+                .onSuccess {
+                    _reports.update { list -> list.filter { it.id != reportId } }
+                    _toastMessage.send("Đã xóa tài liệu và giải quyết báo cáo!")
+                    loadDashboardStats() // Cập nhật lại số liệu dashboard
+                }
+                .onFailure { _toastMessage.send("Lỗi xóa tài liệu: ${it.message}") }
             _isProcessing.value = false
         }
     }
 
-    // Bỏ qua báo cáo (không xóa tài liệu)
     fun dismissReport(reportId: String) {
         viewModelScope.launch {
-            _reports.update { currentList ->
-                currentList.filter { it.id != reportId }
-            }
-            _toastMessage.send("Đã bỏ qua báo cáo.")
+            repository.dismissReport(reportId)
+                .onSuccess {
+                    _reports.update { list -> list.filter { it.id != reportId } }
+                    _toastMessage.send("Đã bỏ qua báo cáo.")
+                }
+                .onFailure { _toastMessage.send("Lỗi: ${it.message}") }
+        }
+    }
+
+    // ==========================================
+    // 4. 🟢 MỚI: GỬI THÔNG BÁO HỆ THỐNG
+    // ==========================================
+    fun sendSystemNotification(title: String, content: String) {
+        if (title.isBlank() || content.isBlank()) {
+            // trySend dùng cho Channel khi không trong coroutine (hoặc dùng launch cũng được)
+            viewModelScope.launch { _toastMessage.send("Vui lòng nhập đủ tiêu đề và nội dung!") }
+            return
+        }
+
+        viewModelScope.launch {
+            _isProcessing.value = true
+            repository.sendSystemNotification(title, content)
+                .onSuccess {
+                    _toastMessage.send("✅ Đã gửi thông báo đến toàn hệ thống!")
+                }
+                .onFailure {
+                    _toastMessage.send("❌ Lỗi gửi: ${it.message}")
+                }
+            _isProcessing.value = false
         }
     }
 }

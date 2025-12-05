@@ -1,5 +1,6 @@
 package com.example.stushare.features.feature_admin.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,14 +36,55 @@ fun AdminUserListScreen(
     onBackClick: () -> Unit,
     viewModel: AdminViewModel = hiltViewModel()
 ) {
-    // Collect state từ ViewModel
+    // 1. Collect State
     val usersList by viewModel.usersList.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingUsers.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
-    // Gọi load data khi màn hình mở ra
+    // State cho hộp thoại xác nhận khóa
+    var showDialog by remember { mutableStateOf(false) }
+    var selectedUser by remember { mutableStateOf<UserEntity?>(null) }
+
+    // 2. Lắng nghe thông báo từ ViewModel (Quan trọng!)
+    LaunchedEffect(Unit) {
+        viewModel.toastMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 3. Gọi load data khi mở màn hình
     LaunchedEffect(Unit) {
         viewModel.loadUsers()
+    }
+
+    // 4. Hộp thoại xác nhận (Confirm Dialog)
+    if (showDialog && selectedUser != null) {
+        val user = selectedUser!!
+        val isLocking = !user.isLocked
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = if (isLocking) "Khóa tài khoản?" else "Mở khóa tài khoản?") },
+            text = {
+                Text("Bạn có chắc muốn ${if (isLocking) "khóa" else "mở khóa"} người dùng \"${user.fullName}\" không?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.toggleUserLock(user)
+                        showDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isLocking) Color.Red else PrimaryGreen
+                    )
+                ) {
+                    Text("Xác nhận")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) { Text("Hủy") }
+            }
+        )
     }
 
     Scaffold(
@@ -82,7 +125,7 @@ fun AdminUserListScreen(
                 singleLine = true
             )
 
-            // Nội dung danh sách
+            // Danh sách User
             if (isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = PrimaryGreen)
@@ -95,18 +138,19 @@ fun AdminUserListScreen(
                 ) {
                     if (usersList.isEmpty()) {
                         item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) {
-                                Text(
-                                    "Không tìm thấy người dùng nào.",
-                                    color = Color.Gray
-                                )
+                            Box(modifier = Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
+                                Text("Không tìm thấy người dùng nào.", color = Color.Gray)
                             }
                         }
                     } else {
                         items(usersList, key = { it.id }) { user ->
                             UserItemCard(
                                 user = user,
-                                onToggleLock = { viewModel.toggleUserLock(user) }
+                                onLockClick = {
+                                    // Thay vì khóa ngay, ta hiện dialog xác nhận
+                                    selectedUser = user
+                                    showDialog = true
+                                }
                             )
                         }
                     }
@@ -117,7 +161,7 @@ fun AdminUserListScreen(
 }
 
 @Composable
-fun UserItemCard(user: UserEntity, onToggleLock: () -> Unit) {
+fun UserItemCard(user: UserEntity, onLockClick: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (user.isLocked) Color(0xFFFFEBEE) else Color.White
@@ -129,7 +173,7 @@ fun UserItemCard(user: UserEntity, onToggleLock: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
+            // Avatar (Ưu tiên ảnh -> Chữ cái đầu -> Icon)
             if (!user.avatarUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = user.avatarUrl,
@@ -139,10 +183,20 @@ fun UserItemCard(user: UserEntity, onToggleLock: () -> Unit) {
                 )
             } else {
                 Box(
-                    modifier = Modifier.size(50.dp).clip(CircleShape).background(PrimaryGreen),
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(if (user.isLocked) Color.Red.copy(alpha = 0.1f) else PrimaryGreen.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Person, null, tint = Color.White)
+                    // Lấy chữ cái đầu của tên
+                    val initial = user.fullName.firstOrNull()?.uppercase() ?: "?"
+                    Text(
+                        text = initial,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = if (user.isLocked) Color.Red else PrimaryGreen
+                    )
                 }
             }
 
@@ -161,12 +215,18 @@ fun UserItemCard(user: UserEntity, onToggleLock: () -> Unit) {
                     color = Color.Gray
                 )
                 if (user.isLocked) {
-                    Text("ĐANG BỊ KHÓA", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "• TÀI KHOẢN ĐANG BỊ KHÓA",
+                        color = Color.Red,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 
-            // Nút Khóa/Mở
-            IconButton(onClick = onToggleLock) {
+            // Nút Khóa
+            IconButton(onClick = onLockClick) {
                 Icon(
                     imageVector = if (user.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                     contentDescription = null,
