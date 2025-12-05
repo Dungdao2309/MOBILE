@@ -24,7 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource // Quan trọng
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -78,8 +78,10 @@ import com.example.stushare.features.feature_profile.ui.legal.PrivacyPolicyScree
 import com.example.stushare.feature_request.ui.detail.RequestDetailScreen
 
 // Admin Imports
-import com.example.stushare.features.feature_admin.ui.AdminScreen
+// 🟢 ĐÃ SỬA: Import AdminDashboardScreen thay vì AdminScreen để tránh lỗi ambiguity
+import com.example.stushare.features.feature_admin.ui.AdminDashboardScreen
 import com.example.stushare.features.feature_admin.ui.AdminReportScreen
+import com.example.stushare.features.feature_admin.ui.AdminUserListScreen
 
 @Composable
 fun AppNavigation(
@@ -108,7 +110,7 @@ fun AppNavigation(
         // ==========================================
         composable<NavRoute.Intro> { ManHinhChao(navController) }
         composable<NavRoute.Onboarding> { ManHinhGioiThieu(navController) }
-        
+
         composable<NavRoute.Login> { backStackEntry ->
             val args = backStackEntry.toRoute<NavRoute.Login>()
             ManHinhDangNhap(
@@ -116,7 +118,7 @@ fun AppNavigation(
                 emailMacDinh = args.email
             )
         }
-        
+
         composable<NavRoute.Register> { ManHinhDangKy(navController) }
         composable<NavRoute.ForgotPassword> { ManHinhQuenMatKhau(navController) }
         composable<NavRoute.LoginSMS> { ManHinhDangNhapSDT(navController) }
@@ -311,9 +313,11 @@ fun AppNavigation(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
         ) {
-            AdminScreen(
+            // 🟢 ĐÃ SỬA: Gọi đúng tên hàm AdminDashboardScreen
+            AdminDashboardScreen(
                 onBackClick = { navController.popBackStack() },
-                onNavigateToReports = { navController.navigate(NavRoute.AdminReports) }
+                onNavigateToReports = { navController.navigate(NavRoute.AdminReports) },
+                onNavigateToUsers = { navController.navigate(NavRoute.AdminUserList) }
             )
         }
 
@@ -326,6 +330,15 @@ fun AppNavigation(
                 onDocumentClick = { documentId ->
                     navController.navigate(NavRoute.DocumentDetail(documentId))
                 }
+            )
+        }
+
+        composable<NavRoute.AdminUserList>(
+            enterTransition = { enterTransition }, exitTransition = { exitTransition },
+            popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
+        ) {
+            AdminUserListScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -361,9 +374,6 @@ fun AppNavigation(
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
         ) {
             val context = LocalContext.current
-            val viewModel = hiltViewModel<ProfileViewModel>()
-            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
             val user = FirebaseAuth.getInstance().currentUser
             val currentEmail = user?.email ?: ""
             val currentPhone = user?.phoneNumber ?: ""
@@ -374,13 +384,13 @@ fun AppNavigation(
                 onBackClick = { navController.popBackStack() },
                 onPersonalInfoClick = { navController.navigate(NavRoute.PersonalInfo) },
                 onPhoneClick = { navController.navigate(NavRoute.EditPhone) },
-                onEmailClick = { }, 
+                onEmailClick = { },
                 onPasswordClick = { navController.navigate(NavRoute.ChangePassword) },
                 onDeleteAccountClick = { Toast.makeText(context, "Chức năng cần xác thực lại", Toast.LENGTH_SHORT).show() }
             )
         }
 
-        // 🟢 ROUTE MỚI: CHỈNH SỬA EMAIL (Đã Việt hóa)
+        // 🟢 CHỈNH SỬA EMAIL
         composable<NavRoute.EditEmail>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
@@ -388,7 +398,7 @@ fun AppNavigation(
             val context = LocalContext.current
             val viewModel = hiltViewModel<ProfileViewModel>()
             val user = FirebaseAuth.getInstance().currentUser
-            
+
             var showPasswordDialog by remember { mutableStateOf(false) }
             var pendingNewEmail by remember { mutableStateOf("") }
             val errEmailSame = stringResource(R.string.err_email_same)
@@ -397,15 +407,15 @@ fun AppNavigation(
                 viewModel.updateMessage.collect { msg ->
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     if (msg.contains("thành công", ignoreCase = true)) {
-                        navController.popBackStack() 
+                        navController.popBackStack()
                     }
                 }
             }
 
             EditAttributeScreen(
-                title = stringResource(R.string.title_edit_email), // "Cập nhật Email"
+                title = stringResource(R.string.title_edit_email),
                 initialValue = user?.email ?: "",
-                label = stringResource(R.string.label_edit_email), // "Địa chỉ Email"
+                label = stringResource(R.string.label_edit_email),
                 onBackClick = { navController.popBackStack() },
                 onSaveClick = { newEmail ->
                     if (newEmail == user?.email) {
@@ -429,21 +439,19 @@ fun AppNavigation(
             }
         }
 
-        // 🟢 ROUTE MỚI: CHỈNH SỬA SỐ ĐIỆN THOẠI (Đã Việt hóa & Hỗ trợ tiếng Anh)
+        // 🟢 CHỈNH SỬA SỐ ĐIỆN THOẠI
         composable<NavRoute.EditPhone>(
             enterTransition = { enterTransition }, exitTransition = { exitTransition },
             popEnterTransition = { popEnterTransition }, popExitTransition = { popExitTransition }
         ) {
             val context = LocalContext.current
-            val activity = LocalContext.current as? android.app.Activity
+            val activity = androidx.activity.compose.LocalActivity.current
             val user = FirebaseAuth.getInstance().currentUser
             val viewModel = hiltViewModel<ProfileViewModel>()
 
             var showOtpDialog by remember { mutableStateOf(false) }
-            var isLoading by remember { mutableStateOf(false) }
 
-            // Các chuỗi thông báo
-            val msgSendingOtp = stringResource(R.string.msg_sending_otp) // "Đang gửi OTP đến %1$s"
+            val msgSendingOtp = stringResource(R.string.msg_sending_otp)
             val msgOtpSent = stringResource(R.string.msg_otp_sent)
             val errPhoneEmpty = stringResource(R.string.err_phone_empty)
             val errGeneric = stringResource(R.string.err_generic)
@@ -459,9 +467,9 @@ fun AppNavigation(
             }
 
             EditAttributeScreen(
-                title = stringResource(R.string.title_edit_phone), // "Cập nhật SĐT"
+                title = stringResource(R.string.title_edit_phone),
                 initialValue = user?.phoneNumber ?: "",
-                label = stringResource(R.string.hint_phone_input), // "Nhập số điện thoại..."
+                label = stringResource(R.string.hint_phone_input),
                 onBackClick = { navController.popBackStack() },
                 onSaveClick = { rawPhone ->
                     if (activity != null && rawPhone.isNotBlank()) {
@@ -472,20 +480,16 @@ fun AppNavigation(
                             formattedPhone = "+84$formattedPhone"
                         }
 
-                        isLoading = true
-                        // Sử dụng String.format để chèn số điện thoại vào chuỗi resource
                         Toast.makeText(context, String.format(msgSendingOtp, formattedPhone), Toast.LENGTH_SHORT).show()
-                        
+
                         viewModel.sendOtp(
                             phoneNumber = formattedPhone,
                             activity = activity,
                             onCodeSent = {
-                                isLoading = false
                                 showOtpDialog = true
                                 Toast.makeText(context, msgOtpSent, Toast.LENGTH_SHORT).show()
                             },
                             onError = { errorMsg ->
-                                isLoading = false
                                 Toast.makeText(context, String.format(errGeneric, errorMsg), Toast.LENGTH_LONG).show()
                             }
                         )
@@ -493,14 +497,14 @@ fun AppNavigation(
                         Toast.makeText(context, errPhoneEmpty, Toast.LENGTH_SHORT).show()
                     }
                 },
-                keyboardType = KeyboardType.Phone // Bàn phím số
+                keyboardType = KeyboardType.Phone
             )
 
             // Dialog OTP
             if (showOtpDialog) {
                 var otpCode by remember { mutableStateOf("") }
                 val errOtpLength = stringResource(R.string.err_otp_length)
-                
+
                 AlertDialog(
                     onDismissRequest = { showOtpDialog = false },
                     title = { Text(stringResource(R.string.title_enter_otp)) },
@@ -519,7 +523,7 @@ fun AppNavigation(
                         }
                     },
                     confirmButton = {
-                        Button(onClick = { 
+                        Button(onClick = {
                             if (otpCode.length == 6) {
                                 viewModel.verifyAndUpdatePhone(otpCode)
                             } else {
@@ -561,12 +565,12 @@ fun AppNavigation(
                 onBackClick = { navController.popBackStack() },
                 onAddAccountClick = { emailCanDangNhap ->
                     FirebaseAuth.getInstance().signOut()
-                    
+
                     navController.navigate(NavRoute.Login(email = emailCanDangNhap)) {
-                        popUpTo(0) { inclusive = true } 
+                        popUpTo(0) { inclusive = true }
                         launchSingleTop = true
                     }
-                    
+
                     if (emailCanDangNhap != null) {
                         Toast.makeText(context, "Vui lòng nhập mật khẩu cho $emailCanDangNhap", Toast.LENGTH_SHORT).show()
                     } else {
@@ -597,8 +601,8 @@ fun AppNavigation(
         ) {
             AboutAppScreen(
                 onBackClick = { navController.popBackStack() },
-                onTermsClick = { navController.navigate(NavRoute.TermsOfUse) },     
-                onPrivacyClick = { navController.navigate(NavRoute.PrivacyPolicy) } 
+                onTermsClick = { navController.navigate(NavRoute.TermsOfUse) },
+                onPrivacyClick = { navController.navigate(NavRoute.PrivacyPolicy) }
             )
         }
 
@@ -623,7 +627,7 @@ fun AppNavigation(
         composable<NavRoute.PrivacyPolicy> {
             PrivacyPolicyScreen(onBackClick = { navController.popBackStack() })
         }
-    } // Kết thúc NavHost
+    }
 }
 
 @Composable

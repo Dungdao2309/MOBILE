@@ -9,12 +9,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.ReportProblem // Icon dấu chấm than
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,16 +23,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.stushare.ui.theme.PrimaryGreen // Hoặc thay bằng Color(0xFF4CAF50)
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.stushare.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminScreen(
+fun AdminDashboardScreen( // 🟢 ĐỔI TÊN HÀM: AdminScreen -> AdminDashboardScreen
     onBackClick: () -> Unit,
-    onNavigateToReports: () -> Unit, // 🟢 Callback để chuyển sang màn Report
+    onNavigateToReports: () -> Unit,
+    onNavigateToUsers: () -> Unit,
     viewModel: AdminViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Sử dụng collectAsStateWithLifecycle để tối ưu hiệu năng
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -44,9 +45,11 @@ fun AdminScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
-        }
+        },
+        containerColor = Color(0xFFF5F5F5)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -58,7 +61,8 @@ fun AdminScreen(
             // 1. Phần Thống kê (Stats)
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(4.dp),
+                elevation = CardDefaults.cardElevation(2.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp)) {
@@ -69,7 +73,10 @@ fun AdminScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         StatItem(count = uiState.userCount, label = "Người dùng", color = PrimaryGreen)
-                        StatItem(count = uiState.docCount, label = "Tài liệu", color = Color(0xFFFF9800))
+
+                        // 🟢 Đảm bảo biến documentCount đúng với trong ViewModel
+                        StatItem(count = uiState.documentCount, label = "Tài liệu", color = Color(0xFFFF9800))
+
                         StatItem(count = uiState.requestCount, label = "Yêu cầu", color = Color(0xFFF44336))
                     }
                 }
@@ -81,28 +88,28 @@ fun AdminScreen(
 
             // 2. Các nút chức năng
 
-            // Nút Quản lý người dùng (Demo)
+            // Nút Quản lý người dùng
             DashboardActionItem(
                 icon = Icons.Default.Group,
                 title = "Quản lý người dùng",
                 color = Color.Blue,
-                onClick = { /* TODO */ }
+                onClick = onNavigateToUsers
             )
 
-            // 🟢 NÚT DUYỆT BÁO CÁO (Quan trọng nhất)
+            // Nút Duyệt báo cáo
             DashboardActionItem(
                 icon = Icons.Default.ReportProblem,
                 title = "Duyệt tài liệu / Báo cáo vi phạm",
                 color = Color.Red,
-                onClick = onNavigateToReports // Gọi callback điều hướng
+                onClick = onNavigateToReports
             )
 
-            // Nút Gửi thông báo (Demo)
+            // Nút Gửi thông báo
             DashboardActionItem(
                 icon = Icons.Default.Notifications,
                 title = "Gửi thông báo hệ thống",
                 color = PrimaryGreen,
-                onClick = { /* TODO */ }
+                onClick = { /* TODO: Tính năng chưa phát triển */ }
             )
         }
     }
@@ -129,7 +136,8 @@ fun DashboardActionItem(
             .padding(vertical = 8.dp)
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
+        elevation = CardDefaults.cardElevation(2.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

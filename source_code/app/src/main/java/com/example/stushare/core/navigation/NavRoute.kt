@@ -31,10 +31,13 @@ sealed interface NavRoute {
     @Serializable data object AdminDashboard : NavRoute
     @Serializable data object AdminReports : NavRoute
 
+    // 🟢 ĐÃ THÊM: Route cho màn hình quản lý user
+    @Serializable data object AdminUserList : NavRoute
+
     // --- SETTINGS ---
     @Serializable data object Settings : NavRoute
     @Serializable data object AccountSecurity : NavRoute
-    
+
     @Serializable data object EditPhone : NavRoute
     @Serializable data object EditEmail : NavRoute
 
@@ -47,6 +50,6 @@ sealed interface NavRoute {
     @Serializable data object SwitchAccount : NavRoute
     @Serializable data object PersonalInfo : NavRoute
 
-    @Serializable data object TermsOfUse : NavRoute    
+    @Serializable data object TermsOfUse : NavRoute
     @Serializable data object PrivacyPolicy : NavRoute
 }
