@@ -131,7 +131,9 @@ private fun HomeContent(
 ) {
     LazyColumn(
         contentPadding = PaddingValues(bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        // 🟢 CẢI TIẾN: Tăng khoảng cách giữa các section từ 16.dp lên 32.dp
+        // Theo Playbook: Khoảng trắng rộng giúp giảm tải nhận thức (cognitive load)
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         // 1. Header Section
         item {
@@ -150,7 +152,7 @@ private fun HomeContent(
         // 2. Section: Mới được tải lên
         item {
             DocumentSection(
-                title = stringResource(R.string.section_new_uploads), // Đảm bảo đã có trong strings.xml
+                title = stringResource(R.string.section_new_uploads),
                 documents = uiState.newDocuments,
                 onViewAllClick = { onViewAllClick("new_uploads") },
                 onDocumentClick = onDocumentClick
@@ -345,30 +347,40 @@ private fun DocumentSection(
 ) {
     if (documents.isNotEmpty()) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            // Header của Section
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp), // Chỉ padding 2 bên, bỏ vertical padding để dùng Spacer
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 🟢 CẢI TIẾN: Dùng titleLarge (22sp, Bold) thay vì titleMedium
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.Black
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp), // Chỉnh nhẹ xuống 20sp cho vừa vặn
+                    color = com.example.stushare.ui.theme.TextBlack // Màu đen chuẩn UX
                 )
-                // 🔴 Đã sửa: Dùng stringResource
+
+                // Nút "Xem tất cả"
                 Text(
                     text = stringResource(R.string.view_all),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), // Đậm hơn chút để dễ bấm
                     color = PrimaryGreen,
-                    modifier = Modifier.clickable { onViewAllClick() }
+                    modifier = Modifier
+                        .clickable { onViewAllClick() }
+                        .padding(4.dp) // Tăng vùng bấm (Touch target)
                 )
             }
 
+            // 🟢 CẢI TIẾN: Dùng Spacer để tạo khoảng cách cố định (Proximity)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Danh sách tài liệu
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // 🟢 CẢI TIẾN: Tăng khoảng cách giữa các thẻ từ 12.dp lên 16.dp
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(documents) { doc ->
                     DocumentCard(

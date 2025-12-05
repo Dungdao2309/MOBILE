@@ -6,67 +6,55 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+// Set of Material typography styles to start with
 val Typography = Typography(
-    // 1. HEADLINE (Dùng cho tên người dùng, tiêu đề lớn nhất trang)
-    headlineSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp,
-        letterSpacing = 0.sp
-    ),
-
-    // 2. TITLE LARGE (Dùng cho tiêu đề Section: "Mới tải lên", Header màn hình)
+    // 1. Dùng cho Tiêu đề lớn (Ví dụ: Tên màn hình, Tên tài liệu chi tiết)
     titleLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 20.sp, // Tăng độ đậm
+        fontWeight = FontWeight.Bold, // Playbook: Dùng Bold cho tiêu đề để tạo điểm nhấn
+        fontSize = 22.sp,
         lineHeight = 28.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.sp,
+        color = TextBlack // Sử dụng màu Off-Black đã định nghĩa
     ),
 
-    // 3. TITLE MEDIUM (Dùng cho tên Tài liệu trong Card)
+    // 2. Dùng cho Tiêu đề thẻ (Ví dụ: Tên tài liệu trong danh sách)
     titleMedium = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.SemiBold, // Đậm vừa phải để dễ đọc tên sách
+        fontWeight = FontWeight.SemiBold, // SemiBold: Rõ ràng nhưng nhẹ hơn tiêu đề chính
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.15.sp
+        letterSpacing = 0.15.sp,
+        color = TextBlack
     ),
 
-    // 4. TITLE SMALL (Dùng cho các mục phụ, sub-header)
-    titleSmall = TextStyle(
+    // 3. Dùng cho Nội dung chính (Ví dụ: Mô tả tài liệu, nội dung bài đăng)
+    bodyMedium = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal, // Playbook: Dùng nét thường cho văn bản dài
+        fontSize = 14.sp,
+        lineHeight = 22.sp, // Playbook: Tăng line-height (~157%) để văn bản "dễ thở" hơn
+        letterSpacing = 0.25.sp,
+        color = TextDarkGrey // Màu xám đậm dịu mắt
+    ),
+
+    // 4. Dùng cho Chú thích nhỏ (Ví dụ: Ngày đăng, số lượt tải, tên tác giả phụ)
+    bodySmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.4.sp,
+        color = TextLightGrey // Màu xám nhạt để giảm sự chú ý
+    ),
+
+    // 5. Dùng cho Chữ trên nút bấm (Button Text)
+    labelLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold, // Chữ trên nút cần đậm để dễ nhận biết hành động
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
-    ),
-
-    // 5. BODY LARGE (Dùng cho lời chào "Xin chào", hoặc văn bản chính)
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    ),
-
-    // 6. BODY MEDIUM (Nội dung phụ, mô tả ngắn)
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
-    ),
-
-    // 7. LABEL SMALL (Caption, số lượt tải, rating)
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp, // Nhỏ gọn tinh tế
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        // Màu sắc sẽ tự động theo ButtonColors, hoặc bạn có thể set cứng nếu muốn
     )
 )
