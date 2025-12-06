@@ -4,10 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stushare.core.data.models.DataFailureException
 import com.example.stushare.core.data.models.Document
-import com.example.stushare.core.data.models.DocumentRequest // 🟢 Import Model Yêu cầu
+import com.example.stushare.core.data.models.DocumentRequest
 import com.example.stushare.core.data.repository.DocumentRepository
 import com.example.stushare.core.data.repository.NotificationRepository
-import com.example.stushare.core.data.repository.RequestRepository // 🟢 Import Repo Yêu cầu
+import com.example.stushare.core.data.repository.RequestRepository
 import com.example.stushare.core.domain.usecase.GetExamDocumentsUseCase
 import com.example.stushare.core.domain.usecase.GetNewDocumentsUseCase
 import com.google.firebase.auth.FirebaseAuth
@@ -23,10 +23,7 @@ data class HomeUiState(
     val examDocuments: List<Document> = emptyList(),
     val bookDocuments: List<Document> = emptyList(),
     val lectureDocuments: List<Document> = emptyList(),
-
-    // 🟢 MỚI: Danh sách yêu cầu từ cộng đồng
     val requestDocuments: List<DocumentRequest> = emptyList(),
-
     val unreadNotificationCount: Int = 0,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -39,7 +36,7 @@ class HomeViewModel @Inject constructor(
     private val getNewDocumentsUseCase: GetNewDocumentsUseCase,
     private val getExamDocumentsUseCase: GetExamDocumentsUseCase,
     private val notificationRepository: NotificationRepository,
-    private val requestRepository: RequestRepository, // 🟢 Inject thêm Repo này
+    private val requestRepository: RequestRepository,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
@@ -47,7 +44,6 @@ class HomeViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
 
-    // Tổng hợp tất cả các luồng dữ liệu (Bây giờ là 9 luồng)
     val uiState: StateFlow<HomeUiState> = combine(
         getNewDocumentsUseCase().catch { emit(emptyList()) },       // 0
         getExamDocumentsUseCase().catch { emit(emptyList()) },      // 1
@@ -57,7 +53,7 @@ class HomeViewModel @Inject constructor(
         _isRefreshing,                                              // 5
         _errorMessage,                                              // 6
         notificationRepository.getUnreadCount().catch { emit(0) }.onStart { emit(0) }, // 7
-        requestRepository.getAllRequests().catch { emit(emptyList()) } // 8 🟢 Luồng Yêu cầu
+        requestRepository.getAllRequests().catch { emit(emptyList()) } // 8
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val newDocs = args[0] as List<Document>
@@ -74,7 +70,7 @@ class HomeViewModel @Inject constructor(
         val unreadCount = args[7] as Int
 
         @Suppress("UNCHECKED_CAST")
-        val requests = args[8] as List<DocumentRequest> // 🟢 Lấy danh sách yêu cầu
+        val requests = args[8] as List<DocumentRequest>
 
         val currentUser = firebaseAuth.currentUser
         val name = currentUser?.displayName ?: "Sinh Viên"
@@ -87,7 +83,7 @@ class HomeViewModel @Inject constructor(
             examDocuments = examDocs,
             bookDocuments = bookDocs,
             lectureDocuments = lectureDocs,
-            requestDocuments = requests.take(10), // 🟢 Chỉ lấy 10 yêu cầu mới nhất để hiển thị Home
+            requestDocuments = requests.take(10),
             unreadNotificationCount = unreadCount,
             isLoading = isLoading,
             isRefreshing = isRefreshing,
@@ -96,7 +92,7 @@ class HomeViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = HomeUiState(isLoading = true)
+        initialValue = HomeUiState(isLoading = true) // Quan trọng: Mặc định Loading để hiện Skeleton
     )
 
     init {
@@ -110,11 +106,22 @@ class HomeViewModel @Inject constructor(
     private fun loadData(isInitial: Boolean) {
         viewModelScope.launch {
             _errorMessage.value = null
-            if (isInitial) _isLoading.value = true else _isRefreshing.value = true
+
+            if (isInitial) {
+                _isLoading.value = true
+            } else {
+                _isRefreshing.value = true
+                // 🟢 THÊM: Tạo độ trễ giả 1.5 giây khi kéo refresh
+                // Để người dùng thấy vòng xoay quay (UX tốt hơn)
+                kotlinx.coroutines.delay(1500)
+            }
 
             try {
+                // Nếu là refresh thủ công (người dùng kéo), ta nên BẮT BUỘC tải lại
+                // thay vì chỉ kiểm tra stale.
+                // Nếu Repository của bạn chưa có hàm forceRefresh, hãy tạm dùng hàm cũ
                 repository.refreshDocumentsIfStale()
-                // RequestRepository dùng Realtime flow nên không cần refresh thủ công
+
             } catch (e: Exception) {
                 e.printStackTrace()
                 _errorMessage.value = when (e) {

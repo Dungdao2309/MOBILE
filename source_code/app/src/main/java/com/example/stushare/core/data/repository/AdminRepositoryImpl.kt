@@ -1,5 +1,6 @@
 package com.example.stushare.core.data.repository
 
+import com.example.stushare.core.data.db.DocumentDao
 import com.example.stushare.core.data.models.AdminStats
 import com.example.stushare.core.data.models.Report
 import com.example.stushare.core.data.models.UserEntity
@@ -12,10 +13,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-// ✅ FILE IMPLEMENTATION: Đã thêm logic lưu thông báo
+// ✅ FILE IMPLEMENTATION: Đã cập nhật logic xóa local database
 class AdminRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    private val documentDao: DocumentDao // 🔥 1. Inject thêm DAO để xử lý dữ liệu local
 ) : AdminRepository {
 
     // --- THỐNG KÊ ---
@@ -56,26 +58,42 @@ class AdminRepositoryImpl @Inject constructor(
 
     override suspend fun deleteDocumentAndResolveReport(documentId: String, reportId: String): Result<Unit> {
         return try {
+            // 1. Xóa file gốc (PDF/Word) và ảnh bìa trên Firebase Storage
             val docSnapshot = firestore.collection("documents").document(documentId).get().await()
             if (docSnapshot.exists()) {
                 val fileUrl = docSnapshot.getString("fileUrl")
                 val imageUrl = docSnapshot.getString("imageUrl")
+
+                // Xóa file tài liệu
                 if (!fileUrl.isNullOrBlank() && fileUrl.startsWith("http")) {
                     try { storage.getReferenceFromUrl(fileUrl).delete().await() } catch (_: Exception) {}
                 }
+
+                // Xóa ảnh bìa (trừ ảnh mặc định picsum)
                 if (!imageUrl.isNullOrBlank() && imageUrl.startsWith("http") && !imageUrl.contains("picsum")) {
                     try { storage.getReferenceFromUrl(imageUrl).delete().await() } catch (_: Exception) {}
                 }
             }
 
+            // 2. Xóa dữ liệu trên Firestore (Server) & Cập nhật trạng thái báo cáo
             firestore.runTransaction { transaction ->
                 val docRef = firestore.collection("documents").document(documentId)
                 val reportRef = firestore.collection("reports").document(reportId)
+
                 if (transaction.get(docRef).exists()) {
                     transaction.delete(docRef)
                 }
                 transaction.update(reportRef, "status", "resolved")
             }.await()
+
+            // 3. 🔥 QUAN TRỌNG: Xóa dữ liệu trong Local Database (Máy người dùng)
+            // Bước này giúp app cập nhật ngay lập tức mà không cần reload lại
+            try {
+                documentDao.deleteDocumentById(documentId)
+            } catch (e: Exception) {
+                // Nếu lỗi xóa local thì bỏ qua, vì server đã xóa rồi, lần sync sau sẽ tự mất
+            }
+
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
@@ -112,7 +130,7 @@ class AdminRepositoryImpl @Inject constructor(
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    // 🟢 MỚI: GỬI THÔNG BÁO HỆ THỐNG
+    // --- GỬI THÔNG BÁO HỆ THỐNG ---
     override suspend fun sendSystemNotification(title: String, content: String): Result<Unit> {
         return try {
             val notification = hashMapOf(

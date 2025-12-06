@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -24,10 +25,11 @@ class NotificationRepositoryImpl @Inject constructor(
 ) : NotificationRepository {
 
     private var isListening = false
-    // 🟢 MỚI: Biến theo dõi User hiện tại đang lắng nghe
     private var currentUserIdListening: String? = null
-    // 🟢 MỚI: Biến giữ listener để hủy khi cần thiết (tránh rò rỉ bộ nhớ)
-    private var listenerRegistration: ListenerRegistration? = null
+
+    // Quản lý listener riêng biệt để tránh rò rỉ bộ nhớ
+    private var userListenerRegistration: ListenerRegistration? = null
+    private var systemListenerRegistration: ListenerRegistration? = null
 
     // =========================================================================
     // 1. LẤY DANH SÁCH THÔNG BÁO (REALTIME)
@@ -36,20 +38,17 @@ class NotificationRepositoryImpl @Inject constructor(
         val currentUser = auth.currentUser
         if (currentUser == null) return emptyFlow()
 
-        // 🟢 SỬA LỖI QUAN TRỌNG: Kiểm tra nếu User thay đổi -> Reset listener
+        // Nếu đổi User, reset toàn bộ listener cũ
         if (currentUserIdListening != currentUser.uid) {
-            Log.d("NOTIF_DEBUG", "🔄 Phát hiện đổi User (Cũ: $currentUserIdListening -> Mới: ${currentUser.uid}). Reset Listener.")
-
-            // Hủy listener cũ nếu có
-            listenerRegistration?.remove()
-            isListening = false
+            Log.d("NOTIF_DEBUG", "🔄 Phát hiện đổi User. Reset Listener.")
+            stopListening()
             currentUserIdListening = currentUser.uid
         }
 
-        // Kích hoạt lắng nghe Realtime từ Firestore
+        // Kích hoạt lắng nghe Realtime (Cả Private và System)
         startRealtimeSync(currentUser.uid)
 
-        // Trả về dữ liệu từ Local Room
+        // Trả về dữ liệu từ Local Room (Single Source of Truth)
         return notificationDao.getNotifications(currentUser.uid)
     }
 
@@ -59,7 +58,7 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     // =========================================================================
-    // 2. TẠO THÔNG BÁO MỚI
+    // 2. TẠO THÔNG BÁO MỚI (GỬI ĐI)
     // =========================================================================
     override suspend fun createNotification(
         targetUserId: String,
@@ -73,7 +72,7 @@ class NotificationRepositoryImpl @Inject constructor(
                 val newId = UUID.randomUUID().toString()
                 val timestamp = System.currentTimeMillis()
 
-                // 1. Tạo Entity để lưu Local
+                // Entity lưu Local (Nếu gửi cho chính mình)
                 val notificationEntity = NotificationEntity(
                     id = newId,
                     title = title,
@@ -85,7 +84,7 @@ class NotificationRepositoryImpl @Inject constructor(
                     relatedId = relatedId
                 )
 
-                // 2. Tạo Map để lưu Firestore (Đảm bảo có relatedId)
+                // Data lưu Firestore
                 val firestoreData = hashMapOf(
                     "id" to newId,
                     "title" to title,
@@ -97,9 +96,7 @@ class NotificationRepositoryImpl @Inject constructor(
                     "relatedId" to relatedId
                 )
 
-                Log.d("NOTIF_DEBUG", "📤 Đang gửi thông báo đến: $targetUserId | relatedId: $relatedId")
-
-                // A. Lưu lên Cloud (Firestore)
+                // A. Lưu lên Cloud
                 firestore.collection("users")
                     .document(targetUserId)
                     .collection("notifications")
@@ -107,9 +104,7 @@ class NotificationRepositoryImpl @Inject constructor(
                     .set(firestoreData)
                     .await()
 
-                Log.d("NOTIF_DEBUG", "✅ Gửi thành công lên Cloud")
-
-                // B. Nếu gửi cho chính mình -> Lưu luôn vào Local
+                // B. Nếu gửi cho chính mình -> Lưu luôn vào Local để UI cập nhật ngay
                 if (targetUserId == auth.currentUser?.uid) {
                     notificationDao.insertNotification(notificationEntity)
                 }
@@ -135,6 +130,8 @@ class NotificationRepositoryImpl @Inject constructor(
         val userId = auth.currentUser?.uid ?: return
         withContext(Dispatchers.IO) {
             notificationDao.markAllAsRead(userId)
+            // Lưu ý: Việc markAllAsRead trên Cloud cho system notification ("ALL")
+            // là rất phức tạp nên ở đây ta chỉ ưu tiên cập nhật Local.
         }
     }
 
@@ -146,7 +143,7 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     // =========================================================================
-    // 4. PRIVATE HELPERS (Đồng bộ ngầm)
+    // 4. PRIVATE HELPERS (Xử lý đồng bộ)
     // =========================================================================
 
     private fun startRealtimeSync(userId: String) {
@@ -154,68 +151,108 @@ class NotificationRepositoryImpl @Inject constructor(
         isListening = true
         Log.d("NOTIF_DEBUG", "🎧 Bắt đầu lắng nghe thông báo cho User: $userId")
 
-        // 🟢 Gán listener vào biến để quản lý vòng đời
-        listenerRegistration = firestore.collection("users")
+        // --- 1. Lắng nghe thông báo CÁ NHÂN (users/{uid}/notifications) ---
+        userListenerRegistration = firestore.collection("users")
             .document(userId)
             .collection("notifications")
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(50)
             .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    isListening = false
-                    Log.e("NOTIF_DEBUG", "❌ Lỗi lắng nghe Realtime: ${e.message}")
-                    return@addSnapshotListener
+                processSnapshot(snapshot, e, userId, source = "PRIVATE")
+            }
+
+        // --- 2. Lắng nghe thông báo HỆ THỐNG (notifications where userId == 'ALL') ---
+        systemListenerRegistration = firestore.collection("notifications")
+            .whereEqualTo("userId", "ALL")
+            // .orderBy("timestamp", Query.Direction.DESCENDING) // Cần tạo Composite Index nếu dùng orderBy với whereEqualTo
+            .addSnapshotListener { snapshot, e ->
+                processSnapshot(snapshot, e, userId, source = "SYSTEM")
+            }
+    }
+
+    private fun stopListening() {
+        userListenerRegistration?.remove()
+        systemListenerRegistration?.remove()
+        isListening = false
+    }
+
+    /**
+     * Hàm xử lý chung cho dữ liệu trả về từ cả 2 luồng
+     */
+    private fun processSnapshot(
+        snapshot: QuerySnapshot?,
+        e: Exception?,
+        currentUserId: String,
+        source: String
+    ) {
+        if (e != null) {
+            Log.e("NOTIF_DEBUG", "❌ Lỗi lắng nghe ($source): ${e.message}")
+            return
+        }
+
+        if (snapshot != null && !snapshot.isEmpty) {
+            Log.d("NOTIF_DEBUG", "📥 Nhận được ${snapshot.size()} thông báo từ nguồn: $source")
+
+            CoroutineScope(Dispatchers.IO).launch {
+                val notifications = snapshot.documents.mapNotNull { doc ->
+                    val id = doc.getString("id") ?: doc.id
+                    val title = doc.getString("title") ?: ""
+                    val message = doc.getString("message") ?: ""
+                    val type = doc.getString("type") ?: "SYSTEM"
+                    val timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+
+                    // Với thông báo hệ thống, cloud thường không lưu trạng thái đã đọc của từng user
+                    // Nên ta lấy giá trị mặc định false nếu không có field này.
+                    val isRead = doc.getBoolean("isRead") ?: false
+                    val relatedId = doc.getString("relatedId")
+
+                    // QUAN TRỌNG: Dù trên cloud userId là "ALL", khi lưu vào Local
+                    // ta phải gán userId = currentUserId thì DAO mới query ra được.
+                    NotificationEntity(
+                        id = id,
+                        title = title,
+                        message = message,
+                        timestamp = timestamp,
+                        userId = currentUserId, // <-- Luôn gán cho user hiện tại
+                        type = type,
+                        isRead = isRead,
+                        relatedId = relatedId
+                    )
                 }
 
-                if (snapshot != null && !snapshot.isEmpty) {
-                    Log.d("NOTIF_DEBUG", "📥 Nhận được ${snapshot.size()} thông báo từ Cloud")
-
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val notifications = snapshot.documents.mapNotNull { doc ->
-                            val id = doc.getString("id") ?: doc.id
-                            val title = doc.getString("title") ?: ""
-                            val message = doc.getString("message") ?: ""
-                            val type = doc.getString("type") ?: "SYSTEM"
-                            val timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
-                            val isRead = doc.getBoolean("isRead") ?: false
-                            val relatedId = doc.getString("relatedId")
-
-                            NotificationEntity(
-                                id = id,
-                                title = title,
-                                message = message,
-                                timestamp = timestamp,
-                                userId = userId,
-                                type = type,
-                                isRead = isRead,
-                                relatedId = relatedId
-                            )
-                        }
-                        // Lưu danh sách mới vào Room -> UI sẽ tự cập nhật
-                        notifications.forEach {
-                            notificationDao.insertNotification(it)
-                        }
-                    }
+                // Lưu vào Room (Dùng Insert với onConflict = REPLACE trong DAO để cập nhật nội dung mới nhất)
+                notifications.forEach {
+                    notificationDao.insertNotification(it)
                 }
             }
+        }
     }
 
     private fun updateReadStatusOnCloud(notifId: String, isRead: Boolean?) {
         val userId = auth.currentUser?.uid ?: return
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // Chỉ cập nhật trạng thái trên Cloud đối với thông báo CÁ NHÂN
+                // (Thông báo hệ thống nằm ở collection chung, user không có quyền sửa/xóa trực tiếp file gốc)
                 val ref = firestore.collection("users")
                     .document(userId)
                     .collection("notifications")
                     .document(notifId)
 
-                if (isRead == null) {
-                    ref.delete()
-                } else {
-                    ref.update("isRead", isRead)
+                // Kiểm tra xem doc có tồn tại trong collection cá nhân không trước khi update
+                // Nếu không (tức là thông báo hệ thống), ta chỉ update ở Local (đã làm ở trên)
+                val docCheck = ref.get().await()
+                if (docCheck.exists()) {
+                    if (isRead == null) {
+                        ref.delete()
+                    } else {
+                        ref.update("isRead", isRead)
+                    }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                // Log lỗi nhẹ, không crash
+                Log.w("NOTIF_DEBUG", "Không thể cập nhật trạng thái Cloud (có thể là System Notif): ${e.message}")
             }
         }
     }

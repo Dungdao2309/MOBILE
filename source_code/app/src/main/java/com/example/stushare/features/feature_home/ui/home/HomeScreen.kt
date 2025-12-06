@@ -10,13 +10,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass // 🟢 Cần import cái này
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -39,8 +38,11 @@ import com.example.stushare.R
 import com.example.stushare.core.data.models.Document
 import com.example.stushare.core.data.models.DocumentRequest
 import com.example.stushare.features.feature_home.ui.components.DocumentCard
-import com.example.stushare.ui.theme.LightGreen
 import com.example.stushare.ui.theme.PrimaryGreen
+import com.example.stushare.ui.theme.TextBlack
+
+// 🟢 Đảm bảo bạn đã có file HomeScreenSkeleton trong cùng package hoặc import đúng
+// import com.example.stushare.features.feature_home.ui.home.HomeScreenSkeleton
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +60,15 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // 🟢 CẬP NHẬT: Tính toán số cột dựa trên kích thước màn hình
+    // Logic này giúp Skeleton hiển thị đúng (1 cột trên điện thoại, nhiều cột trên tablet)
+    val numColumns = when (windowSizeClass.widthSizeClass) {
+        WindowWidthSizeClass.Compact -> 1
+        WindowWidthSizeClass.Medium -> 2
+        WindowWidthSizeClass.Expanded -> 3
+        else -> 1
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         if (uiState.errorMessage != null && uiState.newDocuments.isNotEmpty()) {
@@ -80,7 +91,6 @@ fun HomeScreen(
                 containerColor = PrimaryGreen,
                 contentColor = Color.White
             ) {
-                // 🔴 Đã sửa: Dùng stringResource
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.create_new_request))
             }
         }
@@ -91,11 +101,15 @@ fun HomeScreen(
                 .padding(paddingValues)
                 .pullRefresh(swipeRefreshState)
         ) {
+            // 🟢 CẬP NHẬT: Logic hiển thị Skeleton Loading thay vì vòng xoay
             if (uiState.isLoading && uiState.newDocuments.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = PrimaryGreen)
-                }
+                // Hiển thị khung xương khi đang tải và chưa có dữ liệu
+                HomeScreenSkeleton(
+                    columns = numColumns,
+                    modifier = Modifier.fillMaxSize()
+                )
             } else {
+                // Hiển thị nội dung thật khi đã có dữ liệu
                 HomeContent(
                     uiState = uiState,
                     onSearchClick = onSearchClick,
@@ -108,6 +122,7 @@ fun HomeScreen(
                 )
             }
 
+            // Chỉ hiện vòng xoay nhỏ ở trên cùng khi người dùng kéo xuống để refresh
             PullRefreshIndicator(
                 refreshing = uiState.isRefreshing,
                 state = swipeRefreshState,
@@ -131,8 +146,6 @@ private fun HomeContent(
 ) {
     LazyColumn(
         contentPadding = PaddingValues(bottom = 100.dp),
-        // 🟢 CẢI TIẾN: Tăng khoảng cách giữa các section từ 16.dp lên 32.dp
-        // Theo Playbook: Khoảng trắng rộng giúp giảm tải nhận thức (cognitive load)
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         // 1. Header Section
@@ -163,7 +176,6 @@ private fun HomeContent(
         item {
             if (uiState.requestDocuments.isNotEmpty()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    // Tiêu đề
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -179,15 +191,12 @@ private fun HomeContent(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            // 🔴 Đã sửa: Dùng stringResource
                             Text(
                                 text = stringResource(R.string.community_help),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = Color.Black
                             )
                         }
-
-                        // 🔴 Đã sửa: Dùng stringResource
                         Text(
                             text = stringResource(R.string.view_all),
                             style = MaterialTheme.typography.bodySmall,
@@ -196,7 +205,6 @@ private fun HomeContent(
                         )
                     }
 
-                    // Danh sách lướt ngang
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -208,7 +216,6 @@ private fun HomeContent(
                             )
                         }
 
-                        // Thẻ "Đăng bài" ở cuối danh sách
                         item {
                             Button(
                                 onClick = onRequestListClick,
@@ -224,7 +231,6 @@ private fun HomeContent(
                                         tint = PrimaryGreen
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    // 🔴 Đã sửa: Dùng stringResource
                                     Text(stringResource(R.string.post_request), color = PrimaryGreen, fontSize = 12.sp)
                                 }
                             }
@@ -237,7 +243,7 @@ private fun HomeContent(
         // 4. Section: Tài liệu ôn thi
         item {
             DocumentSection(
-                title = stringResource(R.string.section_exam_review), // Đảm bảo đã có trong strings.xml
+                title = stringResource(R.string.section_exam_review),
                 documents = uiState.examDocuments,
                 onViewAllClick = { onViewAllClick("exam_review") },
                 onDocumentClick = onDocumentClick
@@ -247,7 +253,6 @@ private fun HomeContent(
         // 5. Section: Sách / Giáo trình
         item {
             DocumentSection(
-                // 🔴 Đã sửa: Dùng stringResource
                 title = stringResource(R.string.books_curriculum),
                 documents = uiState.bookDocuments,
                 onViewAllClick = { onViewAllClick("book") },
@@ -258,7 +263,6 @@ private fun HomeContent(
         // 6. Section: Bài giảng / Slide
         item {
             DocumentSection(
-                // 🔴 Đã sửa: Dùng stringResource
                 title = stringResource(R.string.lectures_slides),
                 documents = uiState.lectureDocuments,
                 onViewAllClick = { onViewAllClick("lecture") },
@@ -290,13 +294,12 @@ fun MiniRequestCard(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                // Badge Môn học
                 Surface(
                     color = PrimaryGreen.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
-                        text = request.subject, // Lưu ý: Tên môn học lấy từ DB, cần xử lý riêng nếu muốn dịch
+                        text = request.subject,
                         color = PrimaryGreen,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -305,7 +308,6 @@ fun MiniRequestCard(
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                // Tiêu đề
                 Text(
                     text = request.title,
                     style = MaterialTheme.typography.titleSmall,
@@ -316,7 +318,6 @@ fun MiniRequestCard(
                 )
             }
 
-            // Tác giả
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Person,
@@ -347,39 +348,33 @@ private fun DocumentSection(
 ) {
     if (documents.isNotEmpty()) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header của Section
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp), // Chỉ padding 2 bên, bỏ vertical padding để dùng Spacer
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 🟢 CẢI TIẾN: Dùng titleLarge (22sp, Bold) thay vì titleMedium
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp), // Chỉnh nhẹ xuống 20sp cho vừa vặn
-                    color = com.example.stushare.ui.theme.TextBlack // Màu đen chuẩn UX
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
+                    color = TextBlack
                 )
 
-                // Nút "Xem tất cả"
                 Text(
                     text = stringResource(R.string.view_all),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), // Đậm hơn chút để dễ bấm
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = PrimaryGreen,
                     modifier = Modifier
                         .clickable { onViewAllClick() }
-                        .padding(4.dp) // Tăng vùng bấm (Touch target)
+                        .padding(4.dp)
                 )
             }
 
-            // 🟢 CẢI TIẾN: Dùng Spacer để tạo khoảng cách cố định (Proximity)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Danh sách tài liệu
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
-                // 🟢 CẢI TIẾN: Tăng khoảng cách giữa các thẻ từ 12.dp lên 16.dp
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(documents) { doc ->
@@ -425,7 +420,7 @@ fun HomeHeaderSection(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.home_greeting), // Đảm bảo đã có trong strings.xml
+                    text = stringResource(R.string.home_greeting),
                     color = Color.White.copy(alpha = 0.9f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -439,11 +434,9 @@ fun HomeHeaderSection(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onLeaderboardClick) {
-                    // 🔴 Đã sửa: Dùng stringResource cho contentDescription
                     Icon(Icons.Default.EmojiEvents, contentDescription = stringResource(R.string.desc_leaderboard), tint = Color.White)
                 }
                 IconButton(onClick = onRequestListClick) {
-                    // 🔴 Đã sửa: Dùng stringResource
                     Icon(
                         imageVector = Icons.Default.LiveHelp,
                         contentDescription = stringResource(R.string.desc_community),
@@ -452,7 +445,6 @@ fun HomeHeaderSection(
                 }
                 Box {
                     IconButton(onClick = onNotificationClick) {
-                        // 🔴 Đã sửa: Dùng stringResource
                         Icon(Icons.Default.Notifications, contentDescription = stringResource(R.string.desc_notification), tint = Color.White)
                     }
                     if (unreadCount > 0) {
@@ -467,7 +459,6 @@ fun HomeHeaderSection(
                     }
                 }
                 IconButton(onClick = onUploadClick) {
-                    // 🔴 Đã sửa: Dùng stringResource
                     Icon(Icons.Default.CloudUpload, contentDescription = stringResource(R.string.desc_upload), tint = Color.White)
                 }
             }
@@ -487,7 +478,7 @@ fun HomeHeaderSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.home_search_hint), // Đảm bảo đã có trong strings.xml
+                    text = stringResource(R.string.home_search_hint),
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f)
